@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useCamera } from '../../hooks/useCamera';
-import { useEdgeDetection } from '../../hooks/useEdgeDetection';
-import { EdgeDetector } from './EdgeDetector';
+// import { useEdgeDetection } from '../../hooks/useEdgeDetection';
+// import { EdgeDetector } from './EdgeDetector';
 
 interface CameraCaptureProps {
   onCapture: (imageData: string) => void;
@@ -21,20 +21,19 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     captureImage,
   } = useCamera();
 
-  // Edge detection is completely optional - camera works without it
-  const [enableEdgeDetection, setEnableEdgeDetection] = useState(false);
+  // DISABLED: Edge detection temporarily disabled to fix performance issue
+  // const [enableEdgeDetection, setEnableEdgeDetection] = useState(false);
+  // const {
+  //   corners,
+  //   isInitialized: edgeDetectionReady,
+  //   error: edgeDetectionError,
+  //   isStable,
+  //   stability,
+  //   startDetection,
+  //   stopDetection,
+  // } = useEdgeDetection(videoRef, { enabled: enableEdgeDetection });
 
-  const {
-    corners,
-    isInitialized: edgeDetectionReady,
-    error: edgeDetectionError,
-    isStable,
-    stability,
-    startDetection,
-    stopDetection,
-  } = useEdgeDetection(videoRef, { enabled: enableEdgeDetection });
-
-  // Start camera once on mount - ALWAYS, regardless of edge detection
+  // Start camera once on mount
   useEffect(() => {
     console.log('Starting camera...');
     startCamera();
@@ -42,37 +41,11 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
-  // Enable edge detection only AFTER camera stream is ready
-  useEffect(() => {
-    if (stream) {
-      console.log('Camera stream ready, enabling edge detection...');
-      // Wait a bit to ensure video is playing, then enable edge detection
-      const timer = setTimeout(() => {
-        setEnableEdgeDetection(true);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [stream]);
-
   useEffect(() => {
     if (error && onError) {
       onError(error);
     }
-    if (edgeDetectionError) {
-      console.error('Edge detection error:', edgeDetectionError);
-    }
-  }, [error, edgeDetectionError, onError]);
-
-  // Start edge detection when ready
-  useEffect(() => {
-    if (enableEdgeDetection && edgeDetectionReady) {
-      console.log('Starting edge detection...');
-      startDetection();
-      return () => {
-        stopDetection();
-      };
-    }
-  }, [enableEdgeDetection, edgeDetectionReady, startDetection, stopDetection]);
+  }, [error, onError]);
 
   const handleCapture = () => {
     console.log('Capture button clicked!');
@@ -97,15 +70,15 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
         className="w-full h-full object-cover"
       />
 
-      {/* Edge Detection Overlay - only show if ready, but don't block camera */}
-      {stream && edgeDetectionReady && corners && (
+      {/* Edge Detection Overlay - DISABLED temporarily */}
+      {/* {stream && edgeDetectionReady && corners && (
         <EdgeDetector
           corners={corners}
           videoRef={videoRef}
           isStable={isStable}
           stability={stability}
         />
-      )}
+      )} */}
 
       {/* Loading Overlay - only for camera initialization */}
       {isLoading && (
@@ -117,19 +90,7 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
         </div>
       )}
 
-      {/* Edge Detection Status Badge (non-intrusive) */}
-      {stream && enableEdgeDetection && !edgeDetectionReady && !isLoading && (
-        <div className="absolute top-2 left-2 bg-yellow-500 text-white px-3 py-1 rounded text-sm">
-          Loading edge detection...
-        </div>
-      )}
-
-      {/* Edge Detection Error Badge */}
-      {stream && edgeDetectionError && !isLoading && (
-        <div className="absolute top-2 left-2 bg-red-500 text-white px-3 py-1 rounded text-sm">
-          Edge detection unavailable
-        </div>
-      )}
+      {/* Edge Detection Status - DISABLED temporarily */}
 
       {/* Error Overlay */}
       {error && (
