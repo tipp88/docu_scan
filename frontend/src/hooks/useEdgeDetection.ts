@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { TemporalFilter, FrameRateLimiter } from '../utils/temporalFilter';
-import type { DetectedCorners } from '../utils/opencv';
+import { getOpenCV, loadOpenCV, detectDocumentEdges, type DetectedCorners } from '../utils/opencv';
 
 interface EdgeDetectionOptions {
   targetFps?: number;
@@ -23,12 +23,11 @@ export function useEdgeDetection(
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const workerRef = useRef<Worker | null>(null);
   const temporalFilterRef = useRef<TemporalFilter | null>(null);
   const frameRateLimiterRef = useRef<FrameRateLimiter | null>(null);
   const rafIdRef = useRef<number | null>(null);
 
-  // Initialize worker and filters
+  // Initialize OpenCV and filters
   useEffect(() => {
     // Create temporal filter
     temporalFilterRef.current = new TemporalFilter(historySize);
@@ -36,80 +35,42 @@ export function useEdgeDetection(
     // Create frame rate limiter
     frameRateLimiterRef.current = new FrameRateLimiter(targetFps);
 
-    // Create Web Worker with error handling
-    let initTimeout: number | undefined;
-
-    try {
-      workerRef.current = new Worker(
-        new URL('../workers/edgeDetection.worker.ts', import.meta.url),
-        { type: 'module' }
-      );
-
-      // Set a timeout for initialization (30 seconds)
-      initTimeout = window.setTimeout(() => {
-        if (!isInitialized) {
-          console.warn('Edge detection initialization timeout - disabling feature');
-          setError('Edge detection unavailable (timeout)');
-          setIsInitialized(false);
-          if (workerRef.current) {
-            workerRef.current.terminate();
-            workerRef.current = null;
-          }
-        }
-      }, 30000);
-
-      workerRef.current.onmessage = (e) => {
-        const { type, corners: detectedCorners, error: workerError } = e.data;
-
-        if (type === 'init-complete') {
-          clearTimeout(initTimeout);
+    // Load OpenCV
+    const initOpenCV = async () => {
+      try {
+        const cv = getOpenCV();
+        if (cv) {
+          // Already loaded
           setIsInitialized(true);
           setError(null);
-          console.log('Edge detection worker initialized successfully');
-        } else if (type === 'detection-result') {
-          // Apply temporal filtering
-          const smoothedCorners = temporalFilterRef.current?.update(
-            detectedCorners
-          ) || detectedCorners;
-          setCorners(smoothedCorners);
-          setIsProcessing(false);
-        } else if (type === 'error') {
-          console.warn('Edge detection error:', workerError);
-          setError(workerError || 'Detection error');
-          setIsProcessing(false);
+          console.log('Edge detection ready (OpenCV already loaded)');
+        } else {
+          console.log('Loading OpenCV for edge detection...');
+          await loadOpenCV();
+          setIsInitialized(true);
+          setError(null);
+          console.log('Edge detection ready');
         }
-      };
-
-      workerRef.current.onerror = (err) => {
-        clearTimeout(initTimeout);
-        console.warn('Edge detection worker error (non-critical):', err);
+      } catch (err) {
+        console.warn('Failed to load OpenCV for edge detection (non-critical):', err);
         setError('Edge detection unavailable');
         setIsInitialized(false);
-        // Don't crash - edge detection is optional
-      };
+        // Camera will still work without edge detection
+      }
+    };
 
-      // Initialize the worker
-      workerRef.current.postMessage({ type: 'init' });
-    } catch (err) {
-      clearTimeout(initTimeout);
-      console.warn('Failed to create edge detection worker (non-critical):', err);
-      setError('Edge detection unavailable');
-      // Camera will still work without edge detection
-    }
+    initOpenCV();
 
     return () => {
       if (rafIdRef.current) {
         cancelAnimationFrame(rafIdRef.current);
-      }
-      if (workerRef.current) {
-        workerRef.current.terminate();
       }
     };
   }, [historySize, targetFps]);
 
   // Process video frames
   const processFrame = useCallback(() => {
-    if (!videoRef.current || !isInitialized || !workerRef.current) {
+    if (!videoRef.current || !isInitialized) {
       rafIdRef.current = requestAnimationFrame(processFrame);
       return;
     }
@@ -146,15 +107,27 @@ export function useEdgeDetection(
     }
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-    // Send to worker
+    // Detect edges
     setIsProcessing(true);
-    workerRef.current.postMessage({
-      type: 'detect',
-      imageData,
-      minArea,
-    });
+
+    try {
+      const mat = getOpenCV()?.imread(canvas);
+      if (mat) {
+        const detectedCorners = detectDocumentEdges(mat, minArea);
+        mat.delete();
+
+        // Apply temporal filtering
+        const smoothedCorners = temporalFilterRef.current?.update(
+          detectedCorners
+        ) || detectedCorners;
+        setCorners(smoothedCorners);
+      }
+    } catch (err) {
+      console.warn('Edge detection error:', err);
+    } finally {
+      setIsProcessing(false);
+    }
 
     rafIdRef.current = requestAnimationFrame(processFrame);
   }, [videoRef, isInitialized, isProcessing, minArea]);

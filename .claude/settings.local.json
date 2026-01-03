@@ -23,7 +23,11 @@
       "Bash(xargs kill -9)",
       "Bash(npm run build:*)",
       "Bash(git init:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)"
     ]
   }
 }
