@@ -1,7 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useCamera } from '../../hooks/useCamera';
-import { useEdgeDetection } from '../../hooks/useEdgeDetection';
-import { EdgeDetector } from './EdgeDetector';
 
 interface CameraCaptureProps {
   onCapture: (imageData: string) => void;
@@ -21,74 +19,21 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     captureImage,
   } = useCamera();
 
-  // Edge detection - enabled only after camera is ready
-  const [enableEdgeDetection, setEnableEdgeDetection] = useState(false);
-
-  const {
-    corners,
-    isInitialized: edgeDetectionReady,
-    error: edgeDetectionError,
-    isStable,
-    stability,
-    startDetection,
-    stopDetection,
-  } = useEdgeDetection(videoRef, {
-    enabled: enableEdgeDetection,
-    targetFps: 5, // Low FPS to avoid performance issues
-  });
-
   // Start camera once on mount
   useEffect(() => {
-    console.log('Starting camera...');
     startCamera();
-    // Cleanup handled in useCamera hook
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
-
-  // Enable edge detection ONLY after camera stream is ready
-  useEffect(() => {
-    if (stream && !enableEdgeDetection) {
-      console.log('Camera stream ready, will enable edge detection in 2 seconds...');
-      const timer = setTimeout(() => {
-        console.log('Enabling edge detection now');
-        setEnableEdgeDetection(true);
-      }, 2000); // Wait 2 seconds to ensure video is stable
-
-      return () => clearTimeout(timer);
-    }
-  }, [stream, enableEdgeDetection]);
-
-  // Start edge detection when initialized
-  useEffect(() => {
-    if (enableEdgeDetection && edgeDetectionReady && stream) {
-      console.log('Edge detection ready, starting detection loop');
-      startDetection();
-
-      return () => {
-        console.log('Stopping edge detection (cleanup)');
-        stopDetection();
-      };
-    }
-  }, [enableEdgeDetection, edgeDetectionReady, stream, startDetection, stopDetection]);
+  }, []);
 
   useEffect(() => {
     if (error && onError) {
       onError(error);
     }
-    if (edgeDetectionError) {
-      console.error('Edge detection error:', edgeDetectionError);
-    }
-  }, [error, edgeDetectionError, onError]);
+  }, [error, onError]);
 
   const handleCapture = () => {
-    console.log('Capture button clicked!');
     const imageData = captureImage();
-    console.log('Image data captured:', imageData ? 'Success' : 'Failed');
     if (imageData) {
-      console.log('Calling onCapture with image data');
       onCapture(imageData);
-    } else {
-      console.error('Failed to capture image - no data returned');
     }
   };
 
@@ -103,37 +48,13 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
         className="w-full h-full object-cover"
       />
 
-      {/* Edge Detection Overlay */}
-      {stream && edgeDetectionReady && corners && (
-        <EdgeDetector
-          corners={corners}
-          videoRef={videoRef}
-          isStable={isStable}
-          stability={stability}
-        />
-      )}
-
-      {/* Loading Overlay - only for camera initialization */}
+      {/* Loading Overlay */}
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75">
           <div className="text-white text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
             <p>Initializing camera...</p>
           </div>
-        </div>
-      )}
-
-      {/* Edge Detection Status Badge */}
-      {stream && enableEdgeDetection && !edgeDetectionReady && !isLoading && (
-        <div className="absolute top-2 left-2 bg-blue-500 text-white px-3 py-1 rounded text-sm">
-          Loading edge detection...
-        </div>
-      )}
-
-      {/* Edge Detection Error Badge */}
-      {stream && edgeDetectionError && !isLoading && (
-        <div className="absolute top-2 left-2 bg-orange-500 text-white px-3 py-1 rounded text-sm">
-          Manual mode (edge detection unavailable)
         </div>
       )}
 
@@ -167,7 +88,7 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
                 aria-label="Toggle flash"
               >
                 <svg
-                  className={`w-6 h-6 ${flashOn ? 'text-white' : 'text-white'}`}
+                  className="w-6 h-6 text-white"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
