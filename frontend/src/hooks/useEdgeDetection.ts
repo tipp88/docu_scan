@@ -15,7 +15,7 @@ export function useEdgeDetection(
 ) {
   const {
     enabled = true,
-    targetFps = 8,
+    targetFps = 5, // Reduced to 5 FPS for better performance
     minArea = 10000,
     historySize = 5,
   } = options;
@@ -80,16 +80,17 @@ export function useEdgeDetection(
     initOpenCV();
 
     return () => {
-      if (rafIdRef.current) {
-        cancelAnimationFrame(rafIdRef.current);
+      if (rafIdRef.current !== null) {
+        console.log('Cleaning up edge detection on unmount');
+        window.clearInterval(rafIdRef.current);
+        rafIdRef.current = null;
       }
     };
   }, [enabled, historySize, targetFps]);
 
-  // Process video frames
+  // Process a single frame
   const processFrame = useCallback(() => {
-    if (!videoRef.current || !isInitialized) {
-      rafIdRef.current = requestAnimationFrame(processFrame);
+    if (!videoRef.current || !isInitialized || isProcessing) {
       return;
     }
 
@@ -97,19 +98,6 @@ export function useEdgeDetection(
 
     // Check if video is ready
     if (video.readyState !== video.HAVE_ENOUGH_DATA) {
-      rafIdRef.current = requestAnimationFrame(processFrame);
-      return;
-    }
-
-    // Check frame rate limiter
-    if (!frameRateLimiterRef.current?.shouldProcess()) {
-      rafIdRef.current = requestAnimationFrame(processFrame);
-      return;
-    }
-
-    // Skip if already processing
-    if (isProcessing) {
-      rafIdRef.current = requestAnimationFrame(processFrame);
       return;
     }
 
@@ -120,7 +108,6 @@ export function useEdgeDetection(
 
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      rafIdRef.current = requestAnimationFrame(processFrame);
       return;
     }
 
@@ -130,8 +117,9 @@ export function useEdgeDetection(
     setIsProcessing(true);
 
     try {
-      const mat = getOpenCV()?.imread(canvas);
-      if (mat) {
+      const cv = getOpenCV();
+      if (cv) {
+        const mat = cv.imread(canvas);
         const detectedCorners = detectDocumentEdges(mat, minArea);
         mat.delete();
 
@@ -146,27 +134,36 @@ export function useEdgeDetection(
     } finally {
       setIsProcessing(false);
     }
-
-    rafIdRef.current = requestAnimationFrame(processFrame);
   }, [videoRef, isInitialized, isProcessing, minArea]);
 
-  // Start/stop detection
+  // Start/stop detection using setInterval (more controlled than RAF)
   const startDetection = useCallback(() => {
-    if (rafIdRef.current) {
-      cancelAnimationFrame(rafIdRef.current);
+    // Clear any existing interval
+    if (rafIdRef.current !== null) {
+      window.clearInterval(rafIdRef.current);
+      rafIdRef.current = null;
     }
+
     temporalFilterRef.current?.reset();
     setCorners(null);
-    rafIdRef.current = requestAnimationFrame(processFrame);
-  }, [processFrame]);
+
+    // Run at fixed FPS using setInterval (more predictable than RAF)
+    const fps = targetFps || 5; // Default to 5 FPS for safety
+    const intervalMs = 1000 / fps;
+
+    console.log(`Starting edge detection at ${fps} FPS (${intervalMs}ms interval)`);
+    rafIdRef.current = window.setInterval(processFrame, intervalMs);
+  }, [processFrame, targetFps]);
 
   const stopDetection = useCallback(() => {
-    if (rafIdRef.current) {
-      cancelAnimationFrame(rafIdRef.current);
+    if (rafIdRef.current !== null) {
+      console.log('Stopping edge detection');
+      window.clearInterval(rafIdRef.current);
       rafIdRef.current = null;
     }
     temporalFilterRef.current?.reset();
     setCorners(null);
+    setIsProcessing(false);
   }, []);
 
   // Get stability info
