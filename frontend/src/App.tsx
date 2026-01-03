@@ -7,6 +7,68 @@ import type { Point } from './types/document';
 
 type View = 'camera' | 'preview' | 'review' | 'export';
 
+// Icons as inline SVGs for the refined design
+const ScanIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9V6a3 3 0 013-3h3M3 15v3a3 3 0 003 3h3M15 3h3a3 3 0 013 3v3M15 21h3a3 3 0 003-3v-3" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v8M8 12h8" />
+  </svg>
+);
+
+const PagesIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+
+const DownloadIcon = () => (
+  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+  </svg>
+);
+
+const CloudIcon = () => (
+  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
+
+const ArrowLeftIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+  </svg>
+);
+
+const RefreshIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+  </svg>
+);
+
+const ExportIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+
+const DocumentPlusIcon = () => (
+  <svg className="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+
 function App() {
   const [view, setView] = useState<View>('camera');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -23,7 +85,6 @@ function App() {
   const handleCapture = async (imageData: string) => {
     console.log('Image captured, showing preview for corner adjustment');
     setCapturedImage(imageData);
-    // Reset corners to default for new image
     setCorners([
       { x: 0.1, y: 0.1 },
       { x: 0.9, y: 0.1 },
@@ -43,9 +104,8 @@ function App() {
     try {
       setIsProcessing(true);
       await addPage(capturedImage, corners);
-
       setCapturedImage(null);
-      setView('camera'); // Return to camera for next page
+      setView('camera');
     } catch (error) {
       console.error('Error adding page:', error);
     } finally {
@@ -64,8 +124,6 @@ function App() {
     });
 
     if (success) {
-      // Optionally clear pages after successful download
-      // clear();
       setView('review');
     }
   };
@@ -77,8 +135,6 @@ function App() {
     });
 
     if (result) {
-      // Optionally clear pages after successful upload
-      // clear();
       setView('review');
     }
   };
@@ -88,51 +144,68 @@ function App() {
   };
 
   return (
-    <div className="w-full h-screen flex flex-col bg-gray-900">
+    <div className="w-full h-screen flex flex-col bg-carbon-950 noise-overlay">
       {/* Header */}
-      <header className="bg-gray-800 text-white p-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold">Document Scanner</h1>
-        <div className="flex gap-2">
+      <header className="header px-4 py-3 flex items-center justify-between safe-top">
+        <div className="flex items-center gap-3">
+          {/* Logo */}
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-glow-amber">
+            <svg className="w-5 h-5 text-carbon-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h1 className="font-display text-lg text-carbon-100 tracking-tight">DocuScan</h1>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex items-center gap-1">
           <button
             onClick={() => setView('camera')}
-            className={`px-4 py-2 rounded ${
-              view === 'camera' ? 'bg-blue-600' : 'bg-gray-700'
-            }`}
+            className={`nav-tab flex items-center gap-2 ${view === 'camera' ? 'active' : ''}`}
             disabled={view === 'preview'}
           >
-            Scan
+            <ScanIcon />
+            <span className="hidden sm:inline">Scan</span>
           </button>
           <button
             onClick={() => setView('review')}
-            className={`px-4 py-2 rounded ${
-              view === 'review' ? 'bg-blue-600' : 'bg-gray-700'
-            }`}
+            className={`nav-tab flex items-center gap-2 ${view === 'review' || view === 'export' ? 'active' : ''}`}
             disabled={pages.length === 0}
           >
-            Pages ({pages.length})
+            <PagesIcon />
+            <span className="hidden sm:inline">Pages</span>
+            {pages.length > 0 && (
+              <span className="badge badge-amber">{pages.length}</span>
+            )}
           </button>
-        </div>
+        </nav>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-hidden relative">
+      <main className="flex-1 overflow-hidden relative bg-grid">
+        {/* Processing Overlay */}
         {isProcessing && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center" style={{ zIndex: 1000 }}>
-            <div className="bg-white p-6 rounded-lg text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-800 font-medium">Processing page...</p>
+          <div className="overlay">
+            <div className="modal text-center">
+              <div className="spinner spinner-lg mx-auto mb-6"></div>
+              <h3 className="font-display text-xl text-carbon-100 mb-2">Processing</h3>
+              <p className="text-carbon-400 text-sm">Enhancing your document...</p>
             </div>
           </div>
         )}
 
+        {/* Camera View */}
         {view === 'camera' && (
-          <CameraCapture onCapture={handleCapture} onError={handleError} />
+          <div className="animate-fade-in h-full">
+            <CameraCapture onCapture={handleCapture} onError={handleError} />
+          </div>
         )}
 
+        {/* Preview View - Corner Adjustment */}
         {view === 'preview' && capturedImage && (
-          <div className="w-full h-full flex flex-col bg-black">
-            {/* Corner Adjustment - constrained to not overflow */}
-            <div className="flex-1 flex items-center justify-center overflow-hidden" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+          <div className="w-full h-full flex flex-col bg-carbon-950 animate-fade-in">
+            {/* Corner Adjustment Area */}
+            <div className="flex-1 flex items-center justify-center overflow-hidden p-4" style={{ maxHeight: 'calc(100vh - 200px)' }}>
               <CornerAdjuster
                 imageData={capturedImage}
                 initialCorners={corners}
@@ -140,28 +213,28 @@ function App() {
               />
             </div>
 
-            {/* Preview Controls - Fixed at bottom */}
-            <div className="bg-gray-800 p-4 flex-shrink-0">
-              <div className="max-w-2xl mx-auto">
-                <p className="text-white text-center mb-2 text-sm font-medium">
-                  Adjust document boundaries
-                </p>
-                <p className="text-gray-400 text-center mb-4 text-xs">
-                  Drag the blue corners to frame your document
-                </p>
+            {/* Preview Controls */}
+            <div className="bg-carbon-900 border-t border-carbon-800 p-4 safe-bottom">
+              <div className="max-w-xl mx-auto">
+                <div className="text-center mb-4">
+                  <h3 className="font-display text-lg text-carbon-100 mb-1">Adjust Boundaries</h3>
+                  <p className="text-carbon-400 text-sm">Drag the corners to frame your document precisely</p>
+                </div>
                 <div className="flex gap-3">
                   <button
                     onClick={handleRetake}
-                    className="flex-1 bg-gray-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-gray-500 text-sm"
+                    className="btn btn-secondary flex-1"
                   >
-                    Retake
+                    <RefreshIcon />
+                    <span>Retake</span>
                   </button>
                   <button
                     onClick={handleAcceptImage}
-                    className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-blue-500 text-sm"
+                    className="btn btn-primary flex-1"
                     disabled={isProcessing}
                   >
-                    Add to Document
+                    <CheckIcon />
+                    <span>Add Page</span>
                   </button>
                 </div>
               </div>
@@ -169,61 +242,73 @@ function App() {
           </div>
         )}
 
+        {/* Review View - Document Pages */}
         {view === 'review' && (
-          <div className="w-full h-full overflow-y-auto p-4">
-            <div className="max-w-4xl mx-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-white text-2xl font-bold">
-                  Document Pages ({pages.length})
-                </h2>
-                <div className="flex gap-2">
-                  {pages.length > 0 && (
-                    <>
-                      <button
-                        onClick={() => setView('export')}
-                        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 font-medium"
-                      >
-                        Export Document
-                      </button>
-                      <button
-                        onClick={clear}
-                        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-                      >
-                        Clear All
-                      </button>
-                    </>
-                  )}
+          <div className="w-full h-full overflow-y-auto p-4 animate-fade-in scrollbar-hide">
+            <div className="max-w-5xl mx-auto pb-24">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="font-display text-2xl text-carbon-100 mb-1">Your Document</h2>
+                  <p className="text-carbon-400 text-sm">
+                    {pages.length} page{pages.length !== 1 ? 's' : ''} scanned
+                  </p>
                 </div>
+                {pages.length > 0 && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setView('export')}
+                      className="btn btn-primary"
+                    >
+                      <ExportIcon />
+                      <span className="hidden sm:inline">Export</span>
+                    </button>
+                    <button
+                      onClick={clear}
+                      className="btn btn-danger btn-icon"
+                      title="Clear all pages"
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                )}
               </div>
 
+              {/* Empty State */}
               {pages.length === 0 ? (
-                <div className="text-center text-gray-400 mt-12">
-                  <p className="text-lg">No pages in document yet</p>
-                  <p className="mt-2">Go to Scan view to add pages</p>
+                <div className="empty-state mt-12">
+                  <div className="empty-state-icon">
+                    <DocumentPlusIcon />
+                  </div>
+                  <h3 className="font-display text-xl text-carbon-300 mb-2">No pages yet</h3>
+                  <p className="text-carbon-500 mb-6">Start scanning to add pages to your document</p>
+                  <button
+                    onClick={() => setView('camera')}
+                    className="btn btn-primary"
+                  >
+                    <ScanIcon />
+                    <span>Start Scanning</span>
+                  </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                /* Page Grid */
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                   {pages.map((page, index) => (
-                    <div
-                      key={page.id}
-                      className="bg-gray-800 rounded-lg overflow-hidden shadow-lg"
-                    >
+                    <div key={page.id} className="page-thumbnail animate-slide-up" style={{ animationDelay: `${index * 50}ms` }}>
                       <div className="relative aspect-[3/4]">
                         <img
                           src={page.processedImage}
                           alt={`Page ${index + 1}`}
                           className="w-full h-full object-cover"
                         />
-                        <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm">
-                          Page {index + 1}
-                        </div>
-                      </div>
-                      <div className="p-4 flex gap-2">
+                        <div className="page-number">{String(index + 1).padStart(2, '0')}</div>
+
+                        {/* Delete button - appears on hover */}
                         <button
                           onClick={() => deletePage(page.id)}
-                          className="flex-1 bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 text-sm"
+                          className="absolute bottom-3 right-3 z-20 p-2 rounded-lg bg-crimson-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-crimson-500"
                         >
-                          Delete
+                          <TrashIcon />
                         </button>
                       </div>
                     </div>
@@ -234,60 +319,74 @@ function App() {
           </div>
         )}
 
+        {/* Export View */}
         {view === 'export' && (
-          <div className="w-full h-full flex items-center justify-center p-4">
-            <div className="bg-gray-800 p-8 rounded-lg max-w-md w-full">
-              <h2 className="text-white text-2xl font-bold mb-6">Export Document</h2>
-              <p className="text-gray-300 mb-6">
-                {pages.length} page{pages.length !== 1 ? 's' : ''} ready to export
-              </p>
+          <div className="w-full h-full flex items-center justify-center p-4 animate-fade-in">
+            <div className="card card-elevated p-8 max-w-md w-full">
+              {/* Header */}
+              <div className="mb-8">
+                <button
+                  onClick={() => setView('review')}
+                  className="btn btn-ghost btn-sm mb-4 -ml-2"
+                >
+                  <ArrowLeftIcon />
+                  <span>Back</span>
+                </button>
+                <h2 className="font-display text-2xl text-carbon-100 mb-2">Export Document</h2>
+                <p className="text-carbon-400">
+                  {pages.length} page{pages.length !== 1 ? 's' : ''} ready to export
+                </p>
+              </div>
 
+              {/* Progress */}
               {isExporting && (
-                <div className="mb-6">
-                  <div className="bg-gray-700 rounded-full h-2 overflow-hidden">
-                    <div
-                      className="bg-blue-500 h-full transition-all duration-300"
-                      style={{ width: `${progress}%` }}
-                    />
+                <div className="mb-6 animate-fade-in">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-carbon-300">Exporting...</span>
+                    <span className="text-sm font-medium text-amber-400">{progress}%</span>
                   </div>
-                  <p className="text-gray-300 text-sm mt-2 text-center">
-                    Exporting... {progress}%
-                  </p>
+                  <div className="progress-track">
+                    <div className="progress-fill" style={{ width: `${progress}%` }} />
+                  </div>
                 </div>
               )}
 
+              {/* Error */}
               {exportError && (
-                <div className="mb-6 bg-red-500 bg-opacity-20 border border-red-500 text-red-200 p-4 rounded">
-                  <p className="font-medium">Export Failed</p>
-                  <p className="text-sm mt-1">{exportError}</p>
+                <div className="mb-6 p-4 rounded-xl bg-crimson-500/10 border border-crimson-500/30 animate-fade-in">
+                  <h4 className="font-semibold text-crimson-400 mb-1">Export Failed</h4>
+                  <p className="text-sm text-crimson-300/80">{exportError}</p>
                 </div>
               )}
 
-              <div className="space-y-4">
+              {/* Export Options */}
+              <div className="space-y-3">
                 <button
                   onClick={handleDownloadPDF}
                   disabled={isExporting}
-                  className="w-full bg-blue-600 text-white px-6 py-4 rounded-lg font-medium hover:bg-blue-500 text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="export-option"
                 >
-                  <div className="font-bold">Download as PDF</div>
-                  <div className="text-sm text-blue-100">Save to your device</div>
+                  <div className="export-icon bg-amber-400/20">
+                    <DownloadIcon />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-display text-carbon-100 mb-0.5">Download PDF</div>
+                    <div className="text-sm text-carbon-400">Save locally to your device</div>
+                  </div>
                 </button>
 
                 <button
                   onClick={handleUploadToPaperless}
                   disabled={isExporting}
-                  className="w-full bg-green-600 text-white px-6 py-4 rounded-lg font-medium hover:bg-green-500 text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="export-option"
                 >
-                  <div className="font-bold">Upload to Paperless-ngx</div>
-                  <div className="text-sm text-green-100">Send to document management</div>
-                </button>
-
-                <button
-                  onClick={() => setView('review')}
-                  disabled={isExporting}
-                  className="w-full bg-gray-600 text-white px-6 py-4 rounded-lg font-medium hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Back to Review
+                  <div className="export-icon bg-sage-500/20">
+                    <CloudIcon />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-display text-carbon-100 mb-0.5">Upload to Paperless</div>
+                    <div className="text-sm text-carbon-400">Send to document management</div>
+                  </div>
                 </button>
               </div>
             </div>

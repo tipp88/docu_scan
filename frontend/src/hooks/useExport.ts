@@ -78,29 +78,54 @@ export function useExport() {
       // Prepare images - just send base64 strings
       const images = pages.map(page => page.processedImage);
 
-      setProgress(30);
+      setProgress(10);
 
-      // Upload directly to Paperless (backend will generate PDF)
-      const uploadResponse = await fetch(`${API_BASE_URL}/api/paperless/upload`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // Use XMLHttpRequest for upload progress tracking
+      const result = await new Promise<any>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        // Track upload progress (10% to 80%)
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 70) + 10;
+            setProgress(percentComplete);
+          }
+        });
+
+        // Handle completion
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            setProgress(90);
+            try {
+              const response = JSON.parse(xhr.responseText);
+              resolve(response);
+            } catch (parseError) {
+              reject(new Error('Failed to parse server response'));
+            }
+          } else {
+            reject(new Error(`Failed to upload to Paperless: ${xhr.statusText} - ${xhr.responseText}`));
+          }
+        });
+
+        // Handle errors
+        xhr.addEventListener('error', () => {
+          reject(new Error('Network error during upload'));
+        });
+
+        xhr.addEventListener('abort', () => {
+          reject(new Error('Upload was aborted'));
+        });
+
+        // Send the request
+        xhr.open('POST', `${API_BASE_URL}/api/paperless/upload`);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify({
           images,
           title: options.title || `Scanned Document ${new Date().toLocaleDateString()}`,
           tags: options.tags || ['docu_scan'],
-        }),
+        }));
       });
 
-      setProgress(80);
-
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error(`Failed to upload to Paperless: ${uploadResponse.statusText} - ${errorText}`);
-      }
-
-      const result = await uploadResponse.json();
       setProgress(100);
       setIsExporting(false);
 
