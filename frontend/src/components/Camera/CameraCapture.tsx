@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useCamera } from '../../hooks/useCamera';
 import { useEdgeDetection } from '../../hooks/useEdgeDetection';
 import { EdgeDetector } from './EdgeDetector';
@@ -21,6 +21,9 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     captureImage,
   } = useCamera();
 
+  // Edge detection is completely optional - camera works without it
+  const [enableEdgeDetection, setEnableEdgeDetection] = useState(false);
+
   const {
     corners,
     isInitialized: edgeDetectionReady,
@@ -29,14 +32,27 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     stability,
     startDetection,
     stopDetection,
-  } = useEdgeDetection(videoRef);
+  } = useEdgeDetection(videoRef, { enabled: enableEdgeDetection });
 
-  // Start camera once on mount
+  // Start camera once on mount - ALWAYS, regardless of edge detection
   useEffect(() => {
+    console.log('Starting camera...');
     startCamera();
     // Cleanup handled in useCamera hook
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
+
+  // Enable edge detection only AFTER camera stream is ready
+  useEffect(() => {
+    if (stream) {
+      console.log('Camera stream ready, enabling edge detection...');
+      // Wait a bit to ensure video is playing, then enable edge detection
+      const timer = setTimeout(() => {
+        setEnableEdgeDetection(true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [stream]);
 
   useEffect(() => {
     if (error && onError) {
@@ -47,19 +63,16 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     }
   }, [error, edgeDetectionError, onError]);
 
-  // Start edge detection when camera stream is ready (optional, non-blocking)
+  // Start edge detection when ready
   useEffect(() => {
-    if (stream && edgeDetectionReady) {
-      // Small delay to ensure video is actually playing
-      const timer = setTimeout(() => {
-        startDetection();
-      }, 500);
+    if (enableEdgeDetection && edgeDetectionReady) {
+      console.log('Starting edge detection...');
+      startDetection();
       return () => {
-        clearTimeout(timer);
         stopDetection();
       };
     }
-  }, [stream, edgeDetectionReady, startDetection, stopDetection]);
+  }, [enableEdgeDetection, edgeDetectionReady, startDetection, stopDetection]);
 
   const handleCapture = () => {
     console.log('Capture button clicked!');
@@ -105,9 +118,16 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
       )}
 
       {/* Edge Detection Status Badge (non-intrusive) */}
-      {stream && !edgeDetectionReady && !isLoading && (
+      {stream && enableEdgeDetection && !edgeDetectionReady && !isLoading && (
         <div className="absolute top-2 left-2 bg-yellow-500 text-white px-3 py-1 rounded text-sm">
           Loading edge detection...
+        </div>
+      )}
+
+      {/* Edge Detection Error Badge */}
+      {stream && edgeDetectionError && !isLoading && (
+        <div className="absolute top-2 left-2 bg-red-500 text-white px-3 py-1 rounded text-sm">
+          Edge detection unavailable
         </div>
       )}
 

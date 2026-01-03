@@ -3,6 +3,7 @@ import { TemporalFilter, FrameRateLimiter } from '../utils/temporalFilter';
 import { getOpenCV, loadOpenCV, detectDocumentEdges, type DetectedCorners } from '../utils/opencv';
 
 interface EdgeDetectionOptions {
+  enabled?: boolean;
   targetFps?: number;
   minArea?: number;
   historySize?: number;
@@ -13,6 +14,7 @@ export function useEdgeDetection(
   options: EdgeDetectionOptions = {}
 ) {
   const {
+    enabled = true,
     targetFps = 8,
     minArea = 10000,
     historySize = 5,
@@ -29,13 +31,18 @@ export function useEdgeDetection(
 
   // Initialize OpenCV and filters
   useEffect(() => {
+    // Don't initialize if not enabled
+    if (!enabled) {
+      return;
+    }
+
     // Create temporal filter
     temporalFilterRef.current = new TemporalFilter(historySize);
 
     // Create frame rate limiter
     frameRateLimiterRef.current = new FrameRateLimiter(targetFps);
 
-    // Load OpenCV
+    // Load OpenCV with timeout
     const initOpenCV = async () => {
       try {
         const cv = getOpenCV();
@@ -44,12 +51,23 @@ export function useEdgeDetection(
           setIsInitialized(true);
           setError(null);
           console.log('Edge detection ready (OpenCV already loaded)');
-        } else {
-          console.log('Loading OpenCV for edge detection...');
-          await loadOpenCV();
+          return;
+        }
+
+        console.log('Loading OpenCV for edge detection...');
+
+        // Race between loading OpenCV and timeout
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('OpenCV load timeout')), 10000);
+        });
+
+        try {
+          await Promise.race([loadOpenCV(), timeoutPromise]);
           setIsInitialized(true);
           setError(null);
           console.log('Edge detection ready');
+        } catch (err) {
+          throw err;
         }
       } catch (err) {
         console.warn('Failed to load OpenCV for edge detection (non-critical):', err);
@@ -66,7 +84,7 @@ export function useEdgeDetection(
         cancelAnimationFrame(rafIdRef.current);
       }
     };
-  }, [historySize, targetFps]);
+  }, [enabled, historySize, targetFps]);
 
   // Process video frames
   const processFrame = useCallback(() => {
