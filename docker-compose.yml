@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8888}
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    restart: unless-stopped
+    networks:
+      - docu-scan-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "${BACKEND_PORT:-8888}:8888"
+    environment:
+      - BACKEND_HOST=${BACKEND_HOST:-0.0.0.0}
+      - BACKEND_PORT=${BACKEND_PORT:-8888}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-http://localhost:3000}
+      - PAPERLESS_URL=${PAPERLESS_URL:-http://192.168.178.113:8000}
+      - PAPERLESS_TOKEN=${PAPERLESS_TOKEN}
+      - PAPERLESS_ENABLED=${PAPERLESS_ENABLED:-true}
+      - PAPERLESS_DEFAULT_TAGS=${PAPERLESS_DEFAULT_TAGS:-scanned,mobile}
+      - WEBDAV_ENABLED=${WEBDAV_ENABLED:-false}
+      - WEBDAV_URL=${WEBDAV_URL}
+      - WEBDAV_USERNAME=${WEBDAV_USERNAME}
+      - WEBDAV_PASSWORD=${WEBDAV_PASSWORD}
+      - WEBDAV_DEFAULT_PATH=${WEBDAV_DEFAULT_PATH:-/Scans/}
+      - SMB_ENABLED=${SMB_ENABLED:-false}
+      - SMB_SERVER=${SMB_SERVER}
+      - SMB_SHARE=${SMB_SHARE}
+      - SMB_USERNAME=${SMB_USERNAME}
+      - SMB_PASSWORD=${SMB_PASSWORD}
+      - SMB_DOMAIN=${SMB_DOMAIN:-WORKGROUP}
+      - SMB_DEFAULT_PATH=${SMB_DEFAULT_PATH:-/Scans/}
+      - FTP_ENABLED=${FTP_ENABLED:-false}
+      - FTP_HOST=${FTP_HOST}
+      - FTP_PORT=${FTP_PORT:-21}
+      - FTP_USERNAME=${FTP_USERNAME}
+      - FTP_PASSWORD=${FTP_PASSWORD}
+      - FTP_TLS=${FTP_TLS:-false}
+      - FTP_DEFAULT_PATH=${FTP_DEFAULT_PATH:-/Scans/}
+      - PDF_COMPRESSION_QUALITY=${PDF_COMPRESSION_QUALITY:-85}
+      - PDF_MAX_IMAGE_SIZE=${PDF_MAX_IMAGE_SIZE:-3000}
+    volumes:
+      - ./backend/logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - docu-scan-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  docu-scan-network:
+    driver: bridge

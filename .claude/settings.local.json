@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npx tailwindcss init -p)",
+      "Bash(chmod:*)",
+      "Bash(lsof:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(pip3 install:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker compose:*)",
+      "Bash(openssl req:*)",
+      "Bash(./venv/bin/pip install:*)",
+      "Bash(./venv/bin/python:*)",
+      "Bash(cat:*)",
+      "Bash(PAPERLESS_TOKEN=3bda9403bfd4da867b2584fb2a6e89aeec163cbb ./venv/bin/python:*)",
+      "Bash(xargs kill -9)",
+      "Bash(npm run build:*)",
+      "Bash(git init:*)",
+      "Bash(git branch:*)"
+    ]
+  }
+}
