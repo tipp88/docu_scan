@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CameraCapture } from './components/Camera/CameraCapture';
 import { CornerAdjuster } from './components/Editor/CornerAdjuster';
+import { SettingsModal, useSettings } from './components/Settings/SettingsModal';
 import { useDocumentStore } from './stores/documentStore';
 import { useExport } from './hooks/useExport';
 import type { Point } from './types/document';
@@ -69,6 +70,13 @@ const DocumentPlusIcon = () => (
   </svg>
 );
 
+const SettingsIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+
 function App() {
   const [view, setView] = useState<View>('camera');
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -79,7 +87,10 @@ function App() {
     { x: 0.1, y: 0.9 },
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const { pages, addPage, deletePage, clear } = useDocumentStore();
+  const [showSettings, setShowSettings] = useState(false);
+
+  const settings = useSettings();
+  const { pages, addPage, deletePage, updatePage, processPage, clear } = useDocumentStore();
   const { downloadPDF, uploadToPaperless, isExporting, error: exportError, progress } = useExport();
 
   const handleCapture = async (imageData: string) => {
@@ -129,9 +140,14 @@ function App() {
   };
 
   const handleUploadToPaperless = async () => {
+    // Use tags from settings, fallback to default
+    const tags = settings.paperlessDefaultTags
+      ? settings.paperlessDefaultTags.split(',').map(t => t.trim()).filter(Boolean)
+      : ['docu_scan'];
+
     const result = await uploadToPaperless(pages, {
       title: `Scanned Document ${new Date().toLocaleDateString()}`,
-      tags: ['docu_scan'],
+      tags,
     });
 
     if (result) {
@@ -178,8 +194,19 @@ function App() {
               <span className="badge badge-amber">{pages.length}</span>
             )}
           </button>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="nav-tab flex items-center gap-2"
+            title="Settings"
+          >
+            <SettingsIcon />
+            <span className="hidden sm:inline">Settings</span>
+          </button>
         </nav>
       </header>
+
+      {/* Settings Modal */}
+      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
       {/* Main Content */}
       <main className="flex-1 overflow-hidden relative bg-grid">
@@ -302,6 +329,25 @@ function App() {
                           className="w-full h-full object-cover"
                         />
                         <div className="page-number">{String(index + 1).padStart(2, '0')}</div>
+
+                        {/* Enhancement mode selector */}
+                        <div className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <select
+                            value={page.enhancement}
+                            onChange={async (e) => {
+                              updatePage(page.id, { enhancement: e.target.value as any });
+                              // Reprocess the page with new enhancement
+                              await processPage(page.id);
+                            }}
+                            className="px-2 py-1 rounded-lg bg-carbon-950/90 backdrop-blur-sm text-xs font-semibold text-carbon-200 border border-carbon-700 cursor-pointer hover:bg-carbon-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                            title="Change enhancement mode"
+                          >
+                            <option value="color">📸 Color</option>
+                            <option value="grayscale">⬜ Grayscale</option>
+                            <option value="bw">⬛ B&W</option>
+                            <option value="enhanced">✨ Enhanced</option>
+                          </select>
+                        </div>
 
                         {/* Delete button - appears on hover */}
                         <button

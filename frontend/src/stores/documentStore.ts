@@ -1,9 +1,23 @@
 import { create } from 'zustand';
-import type { DocumentPage, Point } from '../types/document';
+import type { DocumentPage, Point, EnhancementMode } from '../types/document';
 import { applyPerspectiveTransform } from '../utils/perspectiveTransform';
 import { cropWithPerspective } from '../utils/canvasCrop';
-import { enhanceImage } from '../utils/imageEnhancement';
+import { enhanceImage, detectBestEnhancement } from '../utils/imageEnhancement';
 import { getOpenCV } from '../utils/opencv';
+
+// Get default enhancement mode from settings
+function getDefaultEnhancement(): EnhancementMode | 'auto' {
+  try {
+    const stored = localStorage.getItem('docuscan_settings');
+    if (stored) {
+      const settings = JSON.parse(stored);
+      return settings.defaultEnhancement || 'auto';
+    }
+  } catch (e) {
+    console.error('Failed to read enhancement setting:', e);
+  }
+  return 'auto'; // Fallback
+}
 
 interface DocumentStore {
   pages: DocumentPage[];
@@ -37,12 +51,25 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
         { x: 0, y: 1 },
       ];
 
+      // Determine enhancement mode from settings
+      const defaultMode = getDefaultEnhancement();
+      let enhancementMode: EnhancementMode;
+
+      if (defaultMode === 'auto') {
+        // Auto-detect best enhancement based on image characteristics
+        enhancementMode = await detectBestEnhancement(originalImage);
+        console.log('Auto-detected enhancement mode:', enhancementMode);
+      } else {
+        enhancementMode = defaultMode;
+        console.log('Using configured enhancement mode:', enhancementMode);
+      }
+
       const newPage: DocumentPage = {
         id: `page-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         originalImage,
         processedImage: originalImage, // Will be updated by processing
         corners: pageCorners, // Normalized coordinates (0-1)
-        enhancement: 'color', // Default to color (no processing)
+        enhancement: enhancementMode,
         rotation: 0,
         timestamp: Date.now(),
       };
