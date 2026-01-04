@@ -18,63 +18,110 @@ export interface OpenCVLoadStatus {
 export function loadOpenCV(): Promise<any> {
   // If already loaded in module variable, return immediately
   if (cv) {
+    console.log('OpenCV already loaded (module variable)');
     return Promise.resolve(cv);
   }
 
-  // Check if OpenCV is already loaded in window object (from previous load)
+  // Check if OpenCV is already fully initialized in window
   if ((window as any).cv && (window as any).cv.Mat) {
     cv = (window as any).cv;
-    console.log('OpenCV.js already loaded in window, using existing instance');
+    console.log('OpenCV already loaded (window object)');
     return Promise.resolve(cv);
   }
 
   // If currently loading, return the existing promise
   if (loadPromise) {
+    console.log('OpenCV loading in progress, returning existing promise');
     return loadPromise;
   }
 
-  // Start loading
-  isLoading = true;
-  loadPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = '/opencv/opencv.js';
-    script.async = true;
+  // Check if script tag already exists in DOM (check all scripts containing opencv.js)
+  const allScripts = Array.from(document.querySelectorAll('script'));
+  console.log('[loadOpenCV] Checking for existing OpenCV scripts. Total scripts:', allScripts.length);
+  console.log('[loadOpenCV] Scripts with src:', allScripts.filter(s => s.src).map(s => s.src));
 
-    script.onload = () => {
-      // OpenCV.js is loaded, but need to wait for it to be ready
+  const existingScript = allScripts.find(script =>
+    script.src && script.src.includes('opencv.js')
+  );
+
+  console.log('[loadOpenCV] Existing OpenCV script found:', !!existingScript);
+
+  if (existingScript) {
+    console.log('OpenCV script already in DOM, waiting for initialization...');
+    // Script exists, just wait for cv to be ready
+    loadPromise = new Promise((resolve, reject) => {
+      let attempts = 0;
+      const maxAttempts = 100; // 10 seconds
+
       const checkReady = setInterval(() => {
+        attempts++;
         if ((window as any).cv && (window as any).cv.Mat) {
           clearInterval(checkReady);
           cv = (window as any).cv;
           isLoading = false;
-          console.log('OpenCV.js loaded successfully');
+          console.log('OpenCV initialized from existing script');
           resolve(cv);
-        }
-      }, 100);
-
-      // Timeout after 30 seconds
-      setTimeout(() => {
-        if (!cv) {
+        } else if (attempts >= maxAttempts) {
           clearInterval(checkReady);
           isLoading = false;
-          const error = 'OpenCV.js failed to initialize (timeout)';
+          const error = 'OpenCV initialization timeout (existing script)';
           console.error(error);
           reject(new Error(error));
         }
-      }, 30000);
-    };
+      }, 100);
+    });
+    return loadPromise;
+  }
 
-    script.onerror = () => {
-      isLoading = false;
-      loadPromise = null;
-      const error = 'Failed to load OpenCV.js script';
-      console.error(error);
-      reject(new Error(error));
-    };
+  // Start loading fresh script
+  console.log('Loading OpenCV script for the first time...');
+  isLoading = true;
 
-    document.head.appendChild(script);
-  });
+  loadPromise = (async () => {
+    console.log('[loadOpenCV] Creating async loader');
 
+    // Create and append script
+    const script = document.createElement('script');
+    script.src = '/opencv/opencv.js';
+    script.async = true;
+    script.id = 'opencv-js-script';
+
+    // Wait for script to load
+    await new Promise<void>((resolve, reject) => {
+      script.onload = () => {
+        console.log('OpenCV script loaded');
+        resolve();
+      };
+      script.onerror = () => {
+        const error = 'Failed to load OpenCV.js script';
+        console.error(error);
+        reject(new Error(error));
+      };
+      console.log('[loadOpenCV] Appending script to DOM');
+      document.head.appendChild(script);
+    });
+
+    // Wait for WASM initialization
+    console.log('Waiting for WASM initialization...');
+    let attempts = 0;
+    const maxAttempts = 300;
+
+    while (attempts < maxAttempts) {
+      if ((window as any).cv && (window as any).cv.Mat) {
+        cv = (window as any).cv;
+        isLoading = false;
+        console.log('OpenCV fully initialized!');
+        return cv;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
+
+    isLoading = false;
+    throw new Error('OpenCV WASM initialization timeout');
+  })();
+
+  console.log('[loadOpenCV] Returning loadPromise');
   return loadPromise;
 }
 
@@ -83,7 +130,25 @@ export function loadOpenCV(): Promise<any> {
  * Returns null if not yet loaded
  */
 export function getOpenCV(): any {
-  return cv;
+  console.log('[getOpenCV] Called. cv variable:', !!cv);
+  console.log('[getOpenCV] window.cv:', !!(window as any).cv);
+  console.log('[getOpenCV] window.cv.Mat:', !!((window as any).cv?.Mat));
+
+  // Check module variable first
+  if (cv) {
+    console.log('[getOpenCV] Returning cached cv');
+    return cv;
+  }
+
+  // Check if OpenCV is available in window (loaded by camera or other component)
+  if ((window as any).cv && (window as any).cv.Mat) {
+    cv = (window as any).cv;
+    console.log('[getOpenCV] Found OpenCV in window object, caching it');
+    return cv;
+  }
+
+  console.log('[getOpenCV] OpenCV not found, returning null');
+  return null;
 }
 
 /**

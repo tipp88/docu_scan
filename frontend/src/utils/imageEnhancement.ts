@@ -11,12 +11,17 @@ export async function enhanceImage(
   imageData: string,
   mode: EnhancementMode
 ): Promise<string> {
+  console.log(`[enhanceImage] Starting enhancement with mode: ${mode}`);
+
   // For color mode, no processing needed - just return original
   if (mode === 'color') {
+    console.log('[enhanceImage] Color mode, returning original');
     return imageData;
   }
 
   const cv = getOpenCV();
+  console.log('[enhanceImage] Got OpenCV instance:', cv ? 'available' : 'null');
+
   if (!cv) {
     // If OpenCV not available, fall back to returning original image
     console.warn('OpenCV not available for enhancement, returning original image');
@@ -24,8 +29,10 @@ export async function enhanceImage(
   }
 
   return new Promise((resolve) => {
+    console.log('[enhanceImage] Creating image element to load data');
     const img = new Image();
     img.onload = () => {
+      console.log('[enhanceImage] Image loaded, starting OpenCV processing');
       try {
         // Create canvas to load the image
         const inputCanvas = document.createElement('canvas');
