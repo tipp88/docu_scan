@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { DocumentPage, Point, EnhancementMode } from '../types/document';
 import { applyPerspectiveTransform } from '../utils/perspectiveTransform';
 import { cropWithPerspective } from '../utils/canvasCrop';
-import { detectBestEnhancement } from '../utils/imageEnhancement';
+import { detectBestEnhancement, enhanceImage } from '../utils/imageEnhancement';
 import { getOpenCV } from '../utils/opencv';
 
 // Get default enhancement mode from settings
@@ -140,10 +140,18 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
         }
       }
 
-      // Enhancement disabled due to OpenCV async loading issues
-      // TODO: Fix OpenCV promise resolution bug before re-enabling
-      console.log(`[processPage] Enhancement disabled (would be: ${page.enhancement})`);
-      const enhanced = processed;
+      // Apply enhancement if OpenCV is available (loaded via HTML script tag)
+      let enhanced = processed;
+      if (page.enhancement !== 'color') {
+        const cv = getOpenCV();
+        if (cv) {
+          try {
+            enhanced = await enhanceImage(processed, page.enhancement);
+          } catch (error) {
+            console.error('Enhancement failed:', error);
+          }
+        }
+      }
 
       // Update the page
       set(state => ({
