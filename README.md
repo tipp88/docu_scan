@@ -41,13 +41,24 @@ cp .env.example .env
 # Edit .env with your configuration (see Configuration section)
 ```
 
-### 2. Download OpenCV.js
+### 2. Download OpenCV.js (Optional but Recommended)
+
+OpenCV.js provides superior perspective correction. A fallback canvas-based method is used if OpenCV is not available.
 
 ```bash
 cd frontend/public/opencv/
 curl -L https://docs.opencv.org/4.8.0/opencv.js -o opencv.js
 cd ../../..
 ```
+
+**What OpenCV is used for:**
+- ✅ Perspective transformation (warping documents based on corner points)
+- ✅ Image enhancement filters (grayscale, black & white, etc.)
+- ❌ ~~Edge detection~~ (currently disabled - manual corner adjustment only)
+
+**Without OpenCV:**
+- Simple canvas-based cropping (crops to bounding box, no perspective correction)
+- Limited image enhancement options
 
 ### 3. Deploy with Docker
 
@@ -231,12 +242,17 @@ After capture, you'll enter **Corner Adjustment Mode**:
 - Ensure CORS is properly configured
 - Check backend logs: `docker-compose logs backend`
 
-### OpenCV.js Fails to Load
+### OpenCV.js Fails to Load (Optional)
 
-- Verify `frontend/public/opencv/opencv.js` exists
-- Check file size (~8MB)
+If OpenCV fails to load, the app will automatically fall back to canvas-based cropping (no perspective correction).
+
+**To use full perspective correction:**
+- Verify `frontend/public/opencv/opencv.js` exists and is ~8MB
+- Download from: https://docs.opencv.org/4.8.0/opencv.js
 - Clear browser cache
 - Check browser console for errors
+
+**Note:** Edge detection is disabled. OpenCV is only used for perspective transformation and image enhancement.
 
 ### Network Share Connection Issues
 
