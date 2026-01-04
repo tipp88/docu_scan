@@ -3,7 +3,7 @@ import type { DocumentPage, Point, EnhancementMode } from '../types/document';
 import { applyPerspectiveTransform } from '../utils/perspectiveTransform';
 import { cropWithPerspective } from '../utils/canvasCrop';
 import { enhanceImage, detectBestEnhancement } from '../utils/imageEnhancement';
-import { getOpenCV } from '../utils/opencv';
+import { getOpenCV, loadOpenCV } from '../utils/opencv';
 
 // Get default enhancement mode from settings
 function getDefaultEnhancement(): EnhancementMode | 'auto' {
@@ -140,13 +140,26 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
         }
       }
 
+      // Ensure OpenCV is loaded for enhancement (needed for grayscale, bw, enhanced modes)
+      if (page.enhancement !== 'color') {
+        try {
+          console.log('Loading OpenCV for enhancement...');
+          await loadOpenCV();
+          console.log('OpenCV loaded successfully for enhancement');
+        } catch (error) {
+          console.warn('OpenCV failed to load, enhancement may be limited:', error);
+        }
+      }
+
       // Apply enhancement
-      processed = await enhanceImage(processed, page.enhancement);
+      console.log(`Applying enhancement "${page.enhancement}" to page ${id}`);
+      const enhanced = await enhanceImage(processed, page.enhancement);
+      console.log(`Enhancement complete for page ${id}`, enhanced !== processed ? 'Image was enhanced' : 'Image unchanged');
 
       // Update the page
       set(state => ({
         pages: state.pages.map(p =>
-          p.id === id ? { ...p, processedImage: processed } : p
+          p.id === id ? { ...p, processedImage: enhanced } : p
         ),
         isProcessing: false,
       }));

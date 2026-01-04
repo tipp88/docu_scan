@@ -11,9 +11,11 @@ A self-hosted, mobile-first web application for scanning documents with manual c
 - **📸 Camera-Based Scanning**: High-resolution capture using your device camera (up to 4K)
 - **✋ Manual Corner Adjustment**: Precise document boundary control with interactive draggable handles
 - **🔄 Perspective Correction**: Automatically straighten and crop documents using OpenCV.js
-- **🎨 Image Enhancement**: Color, grayscale, black & white, and enhanced modes
+- **🤖 Smart Image Enhancement**: Auto-detects best mode (B&W for text, grayscale for mixed, enhanced for low contrast)
+- **🎨 Manual Enhancement Modes**: Color, grayscale, black & white, and enhanced - adjustable per page
 - **📄 Multi-Page PDFs**: Scan multiple pages into a single PDF document
 - **📤 Paperless-ngx Integration**: Direct upload with real-time progress tracking
+- **⚙️ Settings Menu**: Configure Paperless URL, API token, tags, and default enhancement mode
 - **🔒 Privacy-First**: Runs entirely on your local network, no cloud services
 - **📱 Mobile Optimized**: Responsive design for iOS Safari and Android Chrome
 - **⚡ Progressive Web App**: Install on home screen for app-like experience
@@ -204,8 +206,23 @@ After capture, you'll enter **Corner Adjustment Mode**:
 
 - **Reorder Pages**: Drag and drop thumbnails
 - **Delete Pages**: Remove unwanted captures
-- **Edit Pages**: Re-crop or adjust individual pages
+- **Enhancement Mode**: Hover over pages to change enhancement (Color/Grayscale/B&W/Enhanced)
 - **Clear All**: Start fresh with a new document
+
+### Settings
+
+Access settings via the ⚙️ icon in the header:
+
+- **Paperless-ngx Configuration**:
+  - Server URL (e.g., `http://192.168.1.100:8000`)
+  - API Token (from Paperless → Settings → API Tokens)
+  - Default Tags (comma-separated)
+
+- **Image Processing**:
+  - Default Enhancement Mode: Auto-detect (recommended), Color, Grayscale, B&W, or Enhanced
+  - Auto-detect analyzes each page and selects the best mode for readability and OCR
+
+Settings are saved in browser localStorage (not sent to server).
 
 ## Troubleshooting
 

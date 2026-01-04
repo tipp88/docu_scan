@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **🤖 Automatic Image Enhancement**: Auto-detects best enhancement mode for each page
+  - Analyzes image contrast and brightness
+  - Chooses between Grayscale, B&W, or Enhanced mode
+  - Optimized for OCR and readability
+- **⚙️ Settings Menu**: Comprehensive settings interface
+  - Configure Paperless-ngx URL, API token, and default tags
+  - Set default image enhancement mode (auto or manual)
+  - Settings stored in browser localStorage
+  - Beautiful modal UI matching design system
+- **🎨 Manual Enhancement Controls**: Per-page enhancement mode selector
+  - Appears on hover over page thumbnails
+  - 4 modes: Color (📸), Grayscale (⬜), B&W (⬛), Enhanced (✨)
+  - Real-time reprocessing when changing modes
 - Complete UI redesign with "Precision Instrument" design system
 - Custom typography: Syne (display) and Outfit (body) fonts
 - Warm amber accent color (#fbbf24) with deep charcoal base palette
@@ -30,10 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced button styles with consistent design language
 - Refined navigation tabs with active state indicators
 - Updated empty states with better visual hierarchy
+- Paperless tags now configurable via settings (no longer hardcoded)
+- Default enhancement mode is now auto-detect (was color/no processing)
 
 ### Fixed
 - Upload progress getting stuck at 30% during Paperless-ngx uploads
 - Removed unused Tailwind config file (migrated to CSS @theme)
+- Image enhancement not displaying correctly - ensure OpenCV loads before applying filters
 
 ## [0.2.0] - 2025-01-04
 
