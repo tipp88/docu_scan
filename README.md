@@ -1,18 +1,29 @@
-# Document Scanner - Privacy-First Web Application
+# DocuScan - Privacy-First Document Scanner
 
-A self-hosted, mobile-first web application for scanning documents with automatic edge detection, perspective correction, and seamless integration with Paperless-ngx.
+A self-hosted, mobile-first web application for scanning documents with manual corner adjustment, perspective correction, and seamless integration with Paperless-ngx.
+
+![Design Preview](https://img.shields.io/badge/Design-Precision_Instrument-fbbf24?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Active-5cb576?style=for-the-badge)
 
 ## Features
 
-- **Camera-Based Scanning**: Use your device camera to capture documents
-- **Automatic Edge Detection**: Real-time document outline detection using OpenCV.js
-- **Perspective Correction**: Automatically straighten and crop documents
-- **Image Enhancement**: Color, grayscale, black & white, and enhanced modes
-- **Multi-Page PDFs**: Scan multiple pages into a single PDF
-- **Paperless-ngx Integration**: Direct upload to your document management system
-- **Network Share Support**: Optional WebDAV/SMB/FTP storage
-- **Privacy-First**: Runs entirely on your local network, no cloud services
-- **Mobile Optimized**: Works great on iOS Safari and Android Chrome
+### Core Functionality
+- **📸 Camera-Based Scanning**: High-resolution capture using your device camera (up to 4K)
+- **✋ Manual Corner Adjustment**: Precise document boundary control with interactive draggable handles
+- **🔄 Perspective Correction**: Automatically straighten and crop documents using OpenCV.js
+- **🎨 Image Enhancement**: Color, grayscale, black & white, and enhanced modes
+- **📄 Multi-Page PDFs**: Scan multiple pages into a single PDF document
+- **📤 Paperless-ngx Integration**: Direct upload with real-time progress tracking
+- **🔒 Privacy-First**: Runs entirely on your local network, no cloud services
+- **📱 Mobile Optimized**: Responsive design for iOS Safari and Android Chrome
+- **⚡ Progressive Web App**: Install on home screen for app-like experience
+
+### Design System: "Precision Instrument"
+- **Refined Brutalist-Industrial Aesthetic**: Swiss design influence with geometric precision
+- **Typography**: Syne (display) + Outfit (body) for distinctive character
+- **Color Palette**: Deep charcoal base with warm amber accents
+- **Visual Effects**: Animated scan lines, glowing elements, subtle noise texture
+- **Micro-interactions**: Smooth transitions, hover states, and staggered animations
 
 ## Quick Start
 
@@ -168,12 +179,15 @@ Docu_Scan/
 
 ### Camera Controls
 
-- **Flash Button**: Toggle flash/torch (if available)
+- **Flash Button**: Toggle flash/torch (if device supports it)
 - **Capture Button**: Take a photo of the current frame
-- **Edge Detection Overlay**:
-  - 🟢 Green = High confidence, stable detection
-  - 🟡 Yellow = Medium confidence
-  - 🔴 Red = Low confidence
+- **Scan Line Animation**: Visual guide for document positioning
+- **Corner Frame Overlay**: Amber markers showing recommended document placement
+
+After capture, you'll enter **Corner Adjustment Mode**:
+- Drag the numbered corner handles (1-4) to precisely frame your document
+- Precision grid lines help align the document accurately
+- Selection area shown with glowing amber border
 
 ### Gallery Features
 
@@ -195,17 +209,20 @@ Docu_Scan/
 - Check site permissions in Chrome settings
 - Ensure camera is not in use by another app
 
-### Edge Detection Issues
+### Backend Not Running
 
-**No Detection:**
-- Ensure good lighting
-- Hold camera steady
-- Try manual crop mode (if implemented)
+**Upload Stuck or Failing:**
+- Ensure backend server is running: `cd backend && ./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8888 --reload`
+- Verify backend is accessible at `http://localhost:8888`
+- Check backend logs for errors
+- Test connection: `curl http://localhost:8888/api/paperless/test-connection`
 
-**False Positives:**
-- Clear background helps
-- Avoid complex patterns
-- Adjust min area threshold in settings
+### Corner Adjustment Issues
+
+**Handles Not Responding:**
+- Ensure you're tapping directly on the numbered circles
+- On mobile, touch threshold is larger (easier to grab)
+- Try zooming out if the image is too large
 
 ### Paperless Upload Fails
 
@@ -260,29 +277,31 @@ Docu_Scan/
 - Set `PDF_COMPRESSION_QUALITY` (default: 85)
 - Limit `PDF_MAX_IMAGE_SIZE` (default: 3000px)
 
-## Roadmap
+## Status & Roadmap
 
-### Implemented ✅
-- Camera capture with edge detection
-- Real-time document outline overlay
-- Temporal filtering for stable detection
-- Multi-page workflow
-- Zustand state management
-- Docker deployment
-
-### In Progress 🚧
-- Manual corner adjustment
-- Image enhancement filters
-- PDF generation
-- Paperless-ngx upload
-- Network share connectors
+### Completed ✅
+- ✅ Camera capture with 4K resolution support
+- ✅ Manual corner adjustment with interactive handles
+- ✅ Image enhancement filters (color, grayscale, B&W, enhanced)
+- ✅ Perspective correction using OpenCV.js
+- ✅ Multi-page document workflow
+- ✅ Page reordering and rotation
+- ✅ PDF generation
+- ✅ Paperless-ngx integration with real-time upload progress
+- ✅ PWA support for offline use
+- ✅ Zustand state management
+- ✅ Docker deployment
+- ✅ Refined design system with custom component library
+- ✅ Mobile-optimized touch interactions
 
 ### Planned 📋
-- PWA support for offline use
-- Batch processing
-- OCR integration
-- Custom enhancement presets
-- Dark mode
+- 📋 Automatic edge detection (currently disabled - manual mode only)
+- 📋 Network share connectors (WebDAV/SMB/FTP)
+- 📋 Batch processing for multiple documents
+- 📋 OCR integration with text extraction
+- 📋 Custom enhancement presets
+- 📋 Document templates (receipts, business cards, etc.)
+- 📋 Export history and document library
 
 ## Contributing
 
@@ -294,10 +313,19 @@ MIT License - See LICENSE file for details
 
 ## Credits
 
-- **OpenCV.js**: Computer vision library
-- **FastAPI**: Backend framework
-- **React + Vite**: Frontend framework
-- **Paperless-ngx**: Document management system
+### Technology Stack
+- **OpenCV.js**: Computer vision and image processing
+- **FastAPI**: Python backend framework
+- **React 19 + TypeScript**: Frontend framework
+- **Vite**: Build tool and dev server
+- **Tailwind CSS v4**: Utility-first CSS framework
+- **Zustand**: Lightweight state management
+- **Paperless-ngx**: Document management integration
+
+### Design
+- **Typography**: [Syne](https://fonts.google.com/specimen/Syne) by Bonjour Monde, [Outfit](https://fonts.google.com/specimen/Outfit) by Rodrigo Fuenzalida
+- **Design System**: "Precision Instrument" - Refined brutalist-industrial aesthetic
+- **Icons**: Custom SVG icons based on Heroicons
 
 ## Support
 
