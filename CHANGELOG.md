@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upload progress getting stuck at 30% during Paperless-ngx uploads
 - Removed unused Tailwind config file (migrated to CSS @theme)
 - Image enhancement not displaying correctly - ensure OpenCV loads before applying filters
+- Site freezing when adding document with enhancement enabled (OpenCV duplicate loading issue)
 
 ## [0.2.0] - 2025-01-04
 
