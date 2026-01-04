@@ -16,8 +16,15 @@ export interface OpenCVLoadStatus {
  * This function can be called multiple times safely - it will return the same promise
  */
 export function loadOpenCV(): Promise<any> {
-  // If already loaded, return immediately
+  // If already loaded in module variable, return immediately
   if (cv) {
+    return Promise.resolve(cv);
+  }
+
+  // Check if OpenCV is already loaded in window object (from previous load)
+  if ((window as any).cv && (window as any).cv.Mat) {
+    cv = (window as any).cv;
+    console.log('OpenCV.js already loaded in window, using existing instance');
     return Promise.resolve(cv);
   }
 
