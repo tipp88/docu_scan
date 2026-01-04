@@ -49,8 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Upload progress getting stuck at 30% during Paperless-ngx uploads
 - Removed unused Tailwind config file (migrated to CSS @theme)
-- Image enhancement not displaying correctly - ensure OpenCV loads before applying filters
-- Site freezing when adding document with enhancement enabled (OpenCV duplicate loading issue)
+- **Image enhancement causing app freeze** - Resolved by loading OpenCV via HTML script tag
+  - Root cause: async/await promise chain had a resolution bug where resolve() was called but promise never completed
+  - Solution: Load OpenCV directly via `<script async>` in index.html, bypassing JavaScript promise complexity
+  - Enhancement modes (grayscale, B&W, enhanced) now work reliably without freezing
 
 ## [0.2.0] - 2025-01-04
 
