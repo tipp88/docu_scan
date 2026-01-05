@@ -31,7 +31,9 @@
       "Skill(frontend-design)",
       "Bash(ls:*)",
       "Bash(git rm:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(git tag:*)",
+      "Bash(git config:*)"
     ]
   }
 }

@@ -80,13 +80,14 @@ export interface DetectedCorners {
 
 export function detectDocumentEdges(
   mat: any,
-  minArea: number = 10000
+  minArea: number = 5000
 ): DetectedCorners | null {
   if (!cv) throw new Error('OpenCV not loaded');
 
   const gray = new cv.Mat();
   const blurred = new cv.Mat();
   const edges = new cv.Mat();
+  const dilated = new cv.Mat();
   const contours = new cv.MatVector();
   const hierarchy = new cv.Mat();
 
@@ -94,49 +95,89 @@ export function detectDocumentEdges(
     // Convert to grayscale
     cv.cvtColor(mat, gray, cv.COLOR_RGBA2GRAY);
 
-    // Apply Gaussian blur
+    // Apply bilateral filter to reduce noise while keeping edges sharp
     cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
 
-    // Canny edge detection
-    cv.Canny(blurred, edges, 50, 150);
+    // Use adaptive threshold for better edge detection in varying lighting
+    const thresh = new cv.Mat();
+    cv.adaptiveThreshold(
+      blurred,
+      thresh,
+      255,
+      cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+      cv.THRESH_BINARY,
+      11,
+      2
+    );
 
-    // Find contours
+    // Also try Canny with lower thresholds
+    cv.Canny(blurred, edges, 30, 100);
+
+    // Dilate edges to connect broken lines
+    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
+    cv.dilate(edges, dilated, kernel);
+    kernel.delete();
+
+    // Combine adaptive threshold and Canny results
+    cv.bitwise_or(dilated, thresh, edges);
+    thresh.delete();
+
+    // Find contours using external only (RETR_EXTERNAL finds outer contours)
     cv.findContours(
-      edges,
+      dilated,
       contours,
       hierarchy,
-      cv.RETR_LIST,
+      cv.RETR_EXTERNAL,
       cv.CHAIN_APPROX_SIMPLE
     );
 
+    // Calculate minimum area based on image size (at least 5% of image)
+    const imageArea = mat.rows * mat.cols;
+    const dynamicMinArea = Math.max(minArea, imageArea * 0.05);
+
     // Find the largest quadrilateral contour
-    let maxArea = minArea;
+    let maxArea = dynamicMinArea;
     let bestContour: any = null;
+    let bestScore = 0;
 
     for (let i = 0; i < contours.size(); i++) {
       const contour = contours.get(i);
       const area = cv.contourArea(contour);
 
-      if (area > maxArea) {
+      if (area > dynamicMinArea) {
         const perimeter = cv.arcLength(contour, true);
         const approx = new cv.Mat();
-        cv.approxPolyDP(contour, approx, 0.02 * perimeter, true);
 
-        // Check if it's a quadrilateral
-        if (approx.rows === 4) {
-          const aspectRatio = getAspectRatio(approx);
+        // Try multiple epsilon values for polygon approximation
+        const epsilons = [0.02, 0.03, 0.04, 0.05];
 
-          // Filter by aspect ratio (typical documents are ~1:1.4)
-          if (aspectRatio >= 0.5 && aspectRatio <= 2.0) {
-            maxArea = area;
-            if (bestContour) bestContour.delete();
-            bestContour = approx;
-          } else {
-            approx.delete();
+        for (const eps of epsilons) {
+          cv.approxPolyDP(contour, approx, eps * perimeter, true);
+
+          // Check if it's a quadrilateral (4 corners)
+          if (approx.rows === 4) {
+            const aspectRatio = getAspectRatio(approx);
+
+            // Check if it's convex (document should be convex)
+            const isConvex = cv.isContourConvex(approx);
+
+            // More relaxed aspect ratio filter (0.3 to 3.0 covers most documents)
+            if (aspectRatio >= 0.3 && aspectRatio <= 3.0 && isConvex) {
+              // Score based on area and how rectangular it is
+              const rectangularity = area / (cv.minAreaRect(approx).size.width * cv.minAreaRect(approx).size.height);
+              const score = area * rectangularity;
+
+              if (score > bestScore) {
+                bestScore = score;
+                maxArea = area;
+                if (bestContour) bestContour.delete();
+                bestContour = approx.clone();
+              }
+            }
+            break; // Found a quad with this epsilon, no need to try more
           }
-        } else {
-          approx.delete();
         }
+        approx.delete();
       }
 
       contour.delete();
@@ -150,9 +191,8 @@ export function detectDocumentEdges(
     const corners = extractCorners(bestContour);
     bestContour.delete();
 
-    // Calculate confidence based on area ratio
-    const imageArea = mat.rows * mat.cols;
-    const confidence = Math.min(maxArea / (imageArea * 0.8), 1);
+    // Calculate confidence based on area ratio and rectangularity
+    const confidence = Math.min(maxArea / (imageArea * 0.5), 1);
 
     return {
       ...corners,
@@ -163,6 +203,7 @@ export function detectDocumentEdges(
     gray.delete();
     blurred.delete();
     edges.delete();
+    dilated.delete();
     contours.delete();
     hierarchy.delete();
   }
