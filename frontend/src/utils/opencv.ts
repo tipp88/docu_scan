@@ -95,14 +95,14 @@ export function detectDocumentEdges(
     // Convert to grayscale
     cv.cvtColor(mat, gray, cv.COLOR_RGBA2GRAY);
 
-    // 7x7 blur - balances ignoring fold lines vs detecting edges
-    cv.GaussianBlur(gray, blurred, new cv.Size(7, 7), 0);
+    // Strong blur to ignore background texture (11x11)
+    cv.GaussianBlur(gray, blurred, new cv.Size(11, 11), 0);
 
-    // Canny edge detection
-    cv.Canny(blurred, edges, 40, 120);
+    // Canny with higher thresholds to only detect strong document edges
+    cv.Canny(blurred, edges, 75, 200);
 
-    // Dilate to connect broken lines
-    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
+    // Larger dilation to connect edges and fill gaps
+    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
     cv.dilate(edges, dilated, kernel);
     kernel.delete();
 
@@ -115,9 +115,9 @@ export function detectDocumentEdges(
       cv.CHAIN_APPROX_SIMPLE
     );
 
-    // Calculate minimum area - at least 8% of image (filters out noise on textured backgrounds)
+    // Calculate minimum area - at least 15% of image (filters out background noise)
     const imageArea = mat.rows * mat.cols;
-    const dynamicMinArea = Math.max(minArea, imageArea * 0.08);
+    const dynamicMinArea = Math.max(minArea, imageArea * 0.15);
 
     // Collect ALL quadrilateral contours with their areas
     const candidates: { contour: any; area: number }[] = [];
