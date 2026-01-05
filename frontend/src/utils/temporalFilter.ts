@@ -43,6 +43,29 @@ export class TemporalFilter {
     // Reset missed frame counter on successful detection
     this.missedFrames = 0;
 
+    // Outlier rejection: if we have history, check if new corners are too far from average
+    if (this.history.length >= 3) {
+      const avg = this.getAverage();
+      const maxDrift = 50; // pixels - reject if any corner moves more than this
+
+      const drift = Math.max(
+        Math.abs(corners.topLeft.x - avg.topLeft.x),
+        Math.abs(corners.topLeft.y - avg.topLeft.y),
+        Math.abs(corners.topRight.x - avg.topRight.x),
+        Math.abs(corners.topRight.y - avg.topRight.y),
+        Math.abs(corners.bottomRight.x - avg.bottomRight.x),
+        Math.abs(corners.bottomRight.y - avg.bottomRight.y),
+        Math.abs(corners.bottomLeft.x - avg.bottomLeft.x),
+        Math.abs(corners.bottomLeft.y - avg.bottomLeft.y)
+      );
+
+      // If drift is too large, treat as missed frame (likely bad detection)
+      if (drift > maxDrift) {
+        this.missedFrames++;
+        return avg; // Return stable average instead
+      }
+    }
+
     this.history.push(corners);
 
     // Keep only the most recent frames
@@ -108,11 +131,11 @@ export class TemporalFilter {
   }
 
   /**
-   * Check if detection is stable (enough history, allows brief gaps)
+   * Check if detection is stable (enough consistent history)
    */
   isStable(): boolean {
-    // Stable if we have at least 5 detections and at most 2 missed frames
-    return this.history.length >= 5 && this.missedFrames <= 2;
+    // Stable if we have at least 6 consistent detections (outliers already rejected)
+    return this.history.length >= 6;
   }
 
   /**
