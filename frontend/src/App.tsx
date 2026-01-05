@@ -5,6 +5,7 @@ import { SettingsModal, useSettings } from './components/Settings/SettingsModal'
 import { useDocumentStore } from './stores/documentStore';
 import { useExport } from './hooks/useExport';
 import type { Point } from './types/document';
+import type { DetectedCorners } from './utils/opencv';
 
 type View = 'camera' | 'preview' | 'review' | 'export';
 
@@ -93,15 +94,36 @@ function App() {
   const { pages, addPage, deletePage, updatePage, processPage, clear } = useDocumentStore();
   const { downloadPDF, uploadToPaperless, isExporting, error: exportError, progress } = useExport();
 
-  const handleCapture = async (imageData: string) => {
+  const handleCapture = async (imageData: string, detectedCorners?: DetectedCorners | null) => {
     console.log('Image captured, showing preview for corner adjustment');
     setCapturedImage(imageData);
-    setCorners([
-      { x: 0.1, y: 0.1 },
-      { x: 0.9, y: 0.1 },
-      { x: 0.9, y: 0.9 },
-      { x: 0.1, y: 0.9 },
-    ]);
+
+    // Use detected corners if available and confidence is high enough
+    if (detectedCorners && detectedCorners.confidence > 0.5) {
+      // Convert pixel coordinates to normalized (0-1) coordinates
+      const img = new Image();
+      img.src = imageData;
+      await new Promise(resolve => { img.onload = resolve; });
+
+      const normalizedCorners: [Point, Point, Point, Point] = [
+        { x: detectedCorners.topLeft.x / img.width, y: detectedCorners.topLeft.y / img.height },
+        { x: detectedCorners.topRight.x / img.width, y: detectedCorners.topRight.y / img.height },
+        { x: detectedCorners.bottomRight.x / img.width, y: detectedCorners.bottomRight.y / img.height },
+        { x: detectedCorners.bottomLeft.x / img.width, y: detectedCorners.bottomLeft.y / img.height },
+      ];
+      console.log('Using detected corners with confidence:', detectedCorners.confidence);
+      setCorners(normalizedCorners);
+    } else {
+      // Fallback to default corners
+      console.log('Using default corners (no detection or low confidence)');
+      setCorners([
+        { x: 0.1, y: 0.1 },
+        { x: 0.9, y: 0.1 },
+        { x: 0.9, y: 0.9 },
+        { x: 0.1, y: 0.9 },
+      ]);
+    }
+
     setView('preview');
   };
 

@@ -1,8 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useCamera } from '../../hooks/useCamera';
+import { useEdgeDetection } from '../../hooks/useEdgeDetection';
+import { EdgeDetector } from './EdgeDetector';
+import type { DetectedCorners } from '../../utils/opencv';
 
 interface CameraCaptureProps {
-  onCapture: (imageData: string) => void;
+  onCapture: (imageData: string, detectedCorners?: DetectedCorners | null) => void;
   onError?: (error: string) => void;
 }
 
@@ -32,20 +35,67 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     captureImage,
   } = useCamera();
 
+  // Edge detection state - delayed start to let camera stabilize
+  const [enableEdgeDetection, setEnableEdgeDetection] = useState(false);
+
+  // Store detected corners in ref to avoid re-render loops
+  const detectedCornersRef = useRef<DetectedCorners | null>(null);
+
+  // Edge detection hook
+  const {
+    corners,
+    isInitialized: edgeDetectionReady,
+    isStable,
+    stability,
+    startDetection,
+    stopDetection,
+  } = useEdgeDetection(videoRef, {
+    enabled: enableEdgeDetection,
+    targetFps: 5,
+    minArea: 10000,
+    historySize: 5,
+  });
+
+  // Start camera on mount
   useEffect(() => {
     startCamera();
   }, []);
 
+  // Handle camera errors
   useEffect(() => {
     if (error && onError) {
       onError(error);
     }
   }, [error, onError]);
 
+  // Delay edge detection start by 2 seconds after camera stream is ready
+  useEffect(() => {
+    if (stream && !enableEdgeDetection) {
+      const timer = setTimeout(() => {
+        setEnableEdgeDetection(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [stream, enableEdgeDetection]);
+
+  // Start/stop edge detection based on conditions
+  useEffect(() => {
+    if (enableEdgeDetection && edgeDetectionReady && stream) {
+      startDetection();
+      return () => stopDetection();
+    }
+  }, [enableEdgeDetection, edgeDetectionReady, stream, startDetection, stopDetection]);
+
+  // Store corners in ref (avoids re-render loops in parent)
+  useEffect(() => {
+    detectedCornersRef.current = corners;
+  }, [corners]);
+
   const handleCapture = () => {
     const imageData = captureImage();
     if (imageData) {
-      onCapture(imageData);
+      // Pass detected corners to parent for initial corner adjustment
+      onCapture(imageData, detectedCornersRef.current);
     }
   };
 
@@ -66,9 +116,31 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
       {/* Scanning frame overlay */}
       <div className="camera-frame corner-tr corner-bl" />
 
-      {/* Scan line animation */}
-      {stream && !error && !isLoading && (
+      {/* Scan line animation - only show when no edge detection */}
+      {stream && !error && !isLoading && !corners && (
         <div className="scan-line" />
+      )}
+
+      {/* Edge Detection Overlay */}
+      {stream && edgeDetectionReady && corners && (
+        <EdgeDetector
+          corners={corners}
+          videoRef={videoRef}
+          isStable={isStable}
+          stability={stability}
+        />
+      )}
+
+      {/* Edge Detection Status Badges */}
+      {stream && !error && !isLoading && enableEdgeDetection && !edgeDetectionReady && (
+        <div className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-lg bg-carbon-800/90 backdrop-blur-sm border border-carbon-700">
+          <span className="text-xs font-medium text-amber-400">Initializing edge detection...</span>
+        </div>
+      )}
+      {stream && !error && !isLoading && edgeDetectionReady && !corners && (
+        <div className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-lg bg-carbon-800/90 backdrop-blur-sm border border-carbon-700">
+          <span className="text-xs font-medium text-carbon-400">Searching for document...</span>
+        </div>
       )}
 
       {/* Loading Overlay */}

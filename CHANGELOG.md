@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+*No unreleased changes*
+
+## [1.0.0] - 2026-01-04
+
 ### Added
+- **📐 Real-time Edge Detection**: Automatic document boundary detection in camera view
+  - Uses OpenCV.js Canny edge detection algorithm
+  - Visual overlay shows detected corners with confidence indicator
+  - Temporal filtering smooths jittery detections over 5 frames
+  - Runs at 5 FPS to minimize CPU usage
+  - Auto-populates corner adjuster when confidence > 50%
 - **🤖 Automatic Image Enhancement**: Auto-detects best enhancement mode for each page
   - Analyzes image contrast and brightness
   - Chooses between Grayscale, B&W, or Enhanced mode
