@@ -57,9 +57,9 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     stopDetection,
   } = useEdgeDetection(videoRef, {
     enabled: enableEdgeDetection,
-    targetFps: 6,
+    targetFps: 12,
     minArea: 3000,
-    historySize: 4,
+    historySize: 8,
   });
 
   // Start camera on mount

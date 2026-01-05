@@ -54,7 +54,8 @@ export class TemporalFilter {
   }
 
   /**
-   * Get averaged corners from history
+   * Get weighted averaged corners from history
+   * More recent frames have higher weight for smoother tracking
    */
   private getAverage(): DetectedCorners {
     const averaged: DetectedCorners = {
@@ -65,28 +66,35 @@ export class TemporalFilter {
       confidence: 0,
     };
 
-    for (const frame of this.history) {
-      averaged.topLeft.x += frame.topLeft.x;
-      averaged.topLeft.y += frame.topLeft.y;
-      averaged.topRight.x += frame.topRight.x;
-      averaged.topRight.y += frame.topRight.y;
-      averaged.bottomRight.x += frame.bottomRight.x;
-      averaged.bottomRight.y += frame.bottomRight.y;
-      averaged.bottomLeft.x += frame.bottomLeft.x;
-      averaged.bottomLeft.y += frame.bottomLeft.y;
-      averaged.confidence += frame.confidence;
+    let totalWeight = 0;
+
+    // Weight recent frames more heavily (exponential weighting)
+    for (let i = 0; i < this.history.length; i++) {
+      const frame = this.history[i];
+      // Weight increases for more recent frames (later indices)
+      const weight = Math.pow(1.5, i);
+      totalWeight += weight;
+
+      averaged.topLeft.x += frame.topLeft.x * weight;
+      averaged.topLeft.y += frame.topLeft.y * weight;
+      averaged.topRight.x += frame.topRight.x * weight;
+      averaged.topRight.y += frame.topRight.y * weight;
+      averaged.bottomRight.x += frame.bottomRight.x * weight;
+      averaged.bottomRight.y += frame.bottomRight.y * weight;
+      averaged.bottomLeft.x += frame.bottomLeft.x * weight;
+      averaged.bottomLeft.y += frame.bottomLeft.y * weight;
+      averaged.confidence += frame.confidence * weight;
     }
 
-    const count = this.history.length;
-    averaged.topLeft.x /= count;
-    averaged.topLeft.y /= count;
-    averaged.topRight.x /= count;
-    averaged.topRight.y /= count;
-    averaged.bottomRight.x /= count;
-    averaged.bottomRight.y /= count;
-    averaged.bottomLeft.x /= count;
-    averaged.bottomLeft.y /= count;
-    averaged.confidence /= count;
+    averaged.topLeft.x /= totalWeight;
+    averaged.topLeft.y /= totalWeight;
+    averaged.topRight.x /= totalWeight;
+    averaged.topRight.y /= totalWeight;
+    averaged.bottomRight.x /= totalWeight;
+    averaged.bottomRight.y /= totalWeight;
+    averaged.bottomLeft.x /= totalWeight;
+    averaged.bottomLeft.y /= totalWeight;
+    averaged.confidence /= totalWeight;
 
     return averaged;
   }
@@ -103,8 +111,8 @@ export class TemporalFilter {
    * Check if detection is stable (enough history, allows brief gaps)
    */
   isStable(): boolean {
-    // Stable if we have at least 3 detections and at most 1 missed frame
-    return this.history.length >= 3 && this.missedFrames <= 1;
+    // Stable if we have at least 5 detections and at most 2 missed frames
+    return this.history.length >= 5 && this.missedFrames <= 2;
   }
 
   /**
