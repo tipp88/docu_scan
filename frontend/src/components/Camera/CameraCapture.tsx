@@ -55,9 +55,9 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     stopDetection,
   } = useEdgeDetection(videoRef, {
     enabled: enableEdgeDetection,
-    targetFps: 12,
+    targetFps: 15,
     minArea: 3000,
-    historySize: 8,
+    historySize: 5,
   });
 
   // Start camera on mount
@@ -108,25 +108,15 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
       return;
     }
 
-    // Show pending indicator
+    // Capture NOW - no delay!
     setAutoCapturePending(true);
+    autoCaptureTriggeredRef.current = true;
 
-    // Capture immediately - isStable means we have enough consistent frames
-    // Small delay just for visual feedback
-    const captureTimeout = setTimeout(() => {
-      if (autoCaptureTriggeredRef.current) return;
-
-      autoCaptureTriggeredRef.current = true;
-      setAutoCapturePending(false);
-
-      console.log('Auto-capture triggered, corners ref:', detectedCornersRef.current);
-      const imageData = captureImage();
-      if (imageData) {
-        onCapture(imageData, detectedCornersRef.current);
-      }
-    }, 200); // 200ms delay for visual feedback only
-
-    return () => clearTimeout(captureTimeout);
+    console.log('Auto-capture NOW, corners:', detectedCornersRef.current);
+    const imageData = captureImage();
+    if (imageData) {
+      onCapture(imageData, detectedCornersRef.current);
+    }
   }, [corners, isStable, captureImage, onCapture]);
 
   const handleCapture = () => {

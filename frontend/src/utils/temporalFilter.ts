@@ -14,7 +14,6 @@ export class TemporalFilter {
   private history: DetectedCorners[] = [];
   private maxHistory: number;
   private missedFrames: number = 0;
-  private maxMissedFrames: number = 3; // Allow 3 missed frames before reset
 
   constructor(maxHistory: number = 5) {
     this.maxHistory = maxHistory;
@@ -22,49 +21,29 @@ export class TemporalFilter {
 
   /**
    * Add a new detection and return the smoothed result
+   * NO outlier rejection - just average whatever we get
    */
   update(corners: DetectedCorners | null): DetectedCorners | null {
     if (!corners) {
       this.missedFrames++;
 
-      // Only reset after several consecutive missed frames
-      if (this.missedFrames > this.maxMissedFrames) {
+      // Reset after 5 missed frames
+      if (this.missedFrames > 5) {
         this.reset();
         return null;
       }
 
-      // Return last known good average if we have history
+      // Return last known if we have history
       if (this.history.length > 0) {
         return this.getAverage();
       }
       return null;
     }
 
-    // Reset missed frame counter on successful detection
+    // Reset missed frame counter
     this.missedFrames = 0;
 
-    // Outlier rejection: if we have history, check if new corners are wildly different
-    if (this.history.length >= 3) {
-      const avg = this.getAverage();
-      const maxDrift = 150; // pixels - only reject extreme outliers
-
-      const drift = Math.max(
-        Math.abs(corners.topLeft.x - avg.topLeft.x),
-        Math.abs(corners.topLeft.y - avg.topLeft.y),
-        Math.abs(corners.topRight.x - avg.topRight.x),
-        Math.abs(corners.topRight.y - avg.topRight.y),
-        Math.abs(corners.bottomRight.x - avg.bottomRight.x),
-        Math.abs(corners.bottomRight.y - avg.bottomRight.y),
-        Math.abs(corners.bottomLeft.x - avg.bottomLeft.x),
-        Math.abs(corners.bottomLeft.y - avg.bottomLeft.y)
-      );
-
-      // Only reject extreme outliers (completely different detection)
-      if (drift > maxDrift) {
-        return avg; // Return stable average instead
-      }
-    }
-
+    // Just add to history - no rejection
     this.history.push(corners);
 
     // Keep only the most recent frames
@@ -130,11 +109,10 @@ export class TemporalFilter {
   }
 
   /**
-   * Check if detection is stable (enough history)
+   * Check if detection is stable - just need 2 frames!
    */
   isStable(): boolean {
-    // Stable if we have at least 3 detections
-    return this.history.length >= 3;
+    return this.history.length >= 2;
   }
 
   /**
