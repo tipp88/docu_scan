@@ -13,6 +13,8 @@ export interface DetectedCorners {
 export class TemporalFilter {
   private history: DetectedCorners[] = [];
   private maxHistory: number;
+  private missedFrames: number = 0;
+  private maxMissedFrames: number = 3; // Allow 3 missed frames before reset
 
   constructor(maxHistory: number = 5) {
     this.maxHistory = maxHistory;
@@ -23,9 +25,23 @@ export class TemporalFilter {
    */
   update(corners: DetectedCorners | null): DetectedCorners | null {
     if (!corners) {
-      this.reset();
+      this.missedFrames++;
+
+      // Only reset after several consecutive missed frames
+      if (this.missedFrames > this.maxMissedFrames) {
+        this.reset();
+        return null;
+      }
+
+      // Return last known good average if we have history
+      if (this.history.length > 0) {
+        return this.getAverage();
+      }
       return null;
     }
+
+    // Reset missed frame counter on successful detection
+    this.missedFrames = 0;
 
     this.history.push(corners);
 
@@ -34,7 +50,13 @@ export class TemporalFilter {
       this.history.shift();
     }
 
-    // Average all frames in history
+    return this.getAverage();
+  }
+
+  /**
+   * Get averaged corners from history
+   */
+  private getAverage(): DetectedCorners {
     const averaged: DetectedCorners = {
       topLeft: { x: 0, y: 0 },
       topRight: { x: 0, y: 0 },
@@ -74,19 +96,23 @@ export class TemporalFilter {
    */
   reset() {
     this.history = [];
+    this.missedFrames = 0;
   }
 
   /**
-   * Check if detection is stable (history is full)
+   * Check if detection is stable (enough history)
    */
   isStable(): boolean {
-    return this.history.length >= this.maxHistory;
+    return this.history.length >= 3 && this.missedFrames === 0;
   }
 
   /**
    * Get stability as a percentage (0-1)
    */
   getStability(): number {
+    if (this.missedFrames > 0) {
+      return Math.max(0, (this.history.length - this.missedFrames) / this.maxHistory);
+    }
     return this.history.length / this.maxHistory;
   }
 }

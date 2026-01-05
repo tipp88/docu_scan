@@ -96,10 +96,10 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     detectedCornersRef.current = corners;
   }, [corners]);
 
-  // Auto-capture when stable for 1 second
+  // Auto-capture when stable for ~1 second
   useEffect(() => {
-    // Reset if no corners or not stable enough
-    if (!corners || !isStable || stability < 0.6) {
+    // Reset if no corners or not stable
+    if (!corners || !isStable) {
       stableStartTimeRef.current = null;
       setAutoCapturePending(false);
       return;
@@ -138,7 +138,7 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     }, 100);
 
     return () => clearInterval(checkInterval);
-  }, [corners, isStable, stability, captureImage, onCapture]);
+  }, [corners, isStable, captureImage, onCapture]);
 
   const handleCapture = () => {
     const imageData = captureImage();
