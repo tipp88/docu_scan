@@ -100,10 +100,11 @@ export class TemporalFilter {
   }
 
   /**
-   * Check if detection is stable (enough history)
+   * Check if detection is stable (enough history, allows brief gaps)
    */
   isStable(): boolean {
-    return this.history.length >= 3 && this.missedFrames === 0;
+    // Stable if we have at least 3 detections and at most 1 missed frame
+    return this.history.length >= 3 && this.missedFrames <= 1;
   }
 
   /**

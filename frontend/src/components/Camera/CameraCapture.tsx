@@ -45,6 +45,7 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
   const [autoCapturePending, setAutoCapturePending] = useState(false);
   const stableStartTimeRef = useRef<number | null>(null);
   const autoCaptureTriggeredRef = useRef(false);
+  const isStableRef = useRef(false);
 
   // Edge detection hook
   const {
@@ -96,46 +97,58 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     detectedCornersRef.current = corners;
   }, [corners]);
 
-  // Auto-capture when stable for ~1 second
+  // Keep isStable in ref for interval access
   useEffect(() => {
-    // Reset if no corners or not stable
-    if (!corners || !isStable) {
-      stableStartTimeRef.current = null;
-      setAutoCapturePending(false);
-      return;
-    }
+    isStableRef.current = isStable;
+  }, [isStable]);
 
+  // Auto-capture when stable for ~0.5 seconds
+  useEffect(() => {
     // Don't auto-capture twice
     if (autoCaptureTriggeredRef.current) {
       return;
     }
 
-    // Start tracking stable time
-    if (stableStartTimeRef.current === null) {
-      stableStartTimeRef.current = Date.now();
+    // Need corners to be detected
+    if (!corners) {
+      stableStartTimeRef.current = null;
+      setAutoCapturePending(false);
+      return;
     }
-    setAutoCapturePending(true);
 
-    // Set up interval to check duration
-    const checkInterval = setInterval(() => {
+    // If stable, start or continue the timer
+    if (isStable) {
       if (stableStartTimeRef.current === null) {
+        stableStartTimeRef.current = Date.now();
+      }
+      setAutoCapturePending(true);
+    }
+
+    // Set up interval to check duration (uses ref for current isStable value)
+    const checkInterval = setInterval(() => {
+      if (autoCaptureTriggeredRef.current) {
         clearInterval(checkInterval);
         return;
       }
 
+      // Only capture if stable and timer is running
+      if (stableStartTimeRef.current === null || !isStableRef.current) {
+        return;
+      }
+
       const stableDuration = Date.now() - stableStartTimeRef.current;
-      if (stableDuration >= 400) {
-        // Trigger auto-capture after 0.4 seconds of stability
+      if (stableDuration >= 500) {
+        // Trigger auto-capture
         clearInterval(checkInterval);
         autoCaptureTriggeredRef.current = true;
+        setAutoCapturePending(false);
 
-        // Capture the image
         const imageData = captureImage();
         if (imageData) {
           onCapture(imageData, detectedCornersRef.current);
         }
       }
-    }, 100);
+    }, 50);
 
     return () => clearInterval(checkInterval);
   }, [corners, isStable, captureImage, onCapture]);
