@@ -122,29 +122,28 @@ export function detectDocumentEdges(
     cv.bitwise_or(dilated, thresh, edges);
     thresh.delete();
 
-    // Find contours using external only (RETR_EXTERNAL finds outer contours)
+    // Find contours
     cv.findContours(
       dilated,
       contours,
       hierarchy,
-      cv.RETR_EXTERNAL,
+      cv.RETR_LIST,
       cv.CHAIN_APPROX_SIMPLE
     );
 
-    // Calculate minimum area based on image size (at least 5% of image)
+    // Calculate minimum area based on image size (at least 2% of image)
     const imageArea = mat.rows * mat.cols;
-    const dynamicMinArea = Math.max(minArea, imageArea * 0.05);
+    const dynamicMinArea = Math.max(minArea, imageArea * 0.02);
 
     // Find the largest quadrilateral contour
     let maxArea = dynamicMinArea;
     let bestContour: any = null;
-    let bestScore = 0;
 
     for (let i = 0; i < contours.size(); i++) {
       const contour = contours.get(i);
       const area = cv.contourArea(contour);
 
-      if (area > dynamicMinArea) {
+      if (area > maxArea) {
         const perimeter = cv.arcLength(contour, true);
         const approx = new cv.Mat();
 
@@ -158,23 +157,13 @@ export function detectDocumentEdges(
           if (approx.rows === 4) {
             const aspectRatio = getAspectRatio(approx);
 
-            // Check if it's convex (document should be convex)
-            const isConvex = cv.isContourConvex(approx);
-
-            // More relaxed aspect ratio filter (0.3 to 3.0 covers most documents)
-            if (aspectRatio >= 0.3 && aspectRatio <= 3.0 && isConvex) {
-              // Score based on area and how rectangular it is
-              const rectangularity = area / (cv.minAreaRect(approx).size.width * cv.minAreaRect(approx).size.height);
-              const score = area * rectangularity;
-
-              if (score > bestScore) {
-                bestScore = score;
-                maxArea = area;
-                if (bestContour) bestContour.delete();
-                bestContour = approx.clone();
-              }
+            // Relaxed aspect ratio filter
+            if (aspectRatio >= 0.2 && aspectRatio <= 5.0) {
+              maxArea = area;
+              if (bestContour) bestContour.delete();
+              bestContour = approx.clone();
             }
-            break; // Found a quad with this epsilon, no need to try more
+            break;
           }
         }
         approx.delete();

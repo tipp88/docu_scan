@@ -8,11 +8,39 @@ interface EdgeDetectorProps {
   stability: number;
 }
 
+/**
+ * Calculate how object-cover positions the video within its container
+ */
+function getVideoCoverTransform(
+  videoWidth: number,
+  videoHeight: number,
+  containerWidth: number,
+  containerHeight: number
+) {
+  const videoAspect = videoWidth / videoHeight;
+  const containerAspect = containerWidth / containerHeight;
+
+  let scale: number;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  if (videoAspect > containerAspect) {
+    // Video is wider - height fits, width is cropped
+    scale = containerHeight / videoHeight;
+    offsetX = (containerWidth - videoWidth * scale) / 2;
+  } else {
+    // Video is taller - width fits, height is cropped
+    scale = containerWidth / videoWidth;
+    offsetY = (containerHeight - videoHeight * scale) / 2;
+  }
+
+  return { scale, offsetX, offsetY };
+}
+
 export function EdgeDetector({
   corners,
   videoRef,
   isStable,
-  stability,
 }: EdgeDetectorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -25,13 +53,15 @@ export function EdgeDetector({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Match canvas size to video
-    if (
-      canvas.width !== video.videoWidth ||
-      canvas.height !== video.videoHeight
-    ) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+    // Get the displayed size of the video element
+    const rect = video.getBoundingClientRect();
+    const displayWidth = rect.width;
+    const displayHeight = rect.height;
+
+    // Set canvas to match displayed size
+    if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+      canvas.width = displayWidth;
+      canvas.height = displayHeight;
     }
 
     // Clear canvas
@@ -39,83 +69,62 @@ export function EdgeDetector({
 
     if (!corners) return;
 
-    // Determine color based on confidence and stability
-    const confidence = corners.confidence;
-    let strokeColor: string;
-    let fillColor: string;
+    // Calculate transform to match object-cover behavior
+    const { scale, offsetX, offsetY } = getVideoCoverTransform(
+      video.videoWidth,
+      video.videoHeight,
+      displayWidth,
+      displayHeight
+    );
 
-    if (isStable && confidence > 0.7) {
-      // High confidence and stable - green
-      strokeColor = 'rgba(0, 255, 0, 0.8)';
-      fillColor = 'rgba(0, 255, 0, 0.1)';
-    } else if (confidence > 0.5) {
-      // Medium confidence - yellow
-      strokeColor = 'rgba(255, 255, 0, 0.8)';
-      fillColor = 'rgba(255, 255, 0, 0.1)';
-    } else {
-      // Low confidence - red
-      strokeColor = 'rgba(255, 100, 0, 0.8)';
-      fillColor = 'rgba(255, 100, 0, 0.1)';
-    }
+    // Transform video coordinates to canvas coordinates
+    const transformPoint = (x: number, y: number) => ({
+      x: x * scale + offsetX,
+      y: y * scale + offsetY,
+    });
 
-    // Draw quadrilateral
+    const tl = transformPoint(corners.topLeft.x, corners.topLeft.y);
+    const tr = transformPoint(corners.topRight.x, corners.topRight.y);
+    const br = transformPoint(corners.bottomRight.x, corners.bottomRight.y);
+    const bl = transformPoint(corners.bottomLeft.x, corners.bottomLeft.y);
+
+    // Color based on stability (simpler - just green or amber)
+    const strokeColor = isStable ? 'rgba(251, 191, 36, 1)' : 'rgba(251, 191, 36, 0.7)';
+    const fillColor = isStable ? 'rgba(251, 191, 36, 0.15)' : 'rgba(251, 191, 36, 0.08)';
+
+    // Draw quadrilateral fill
     ctx.beginPath();
-    ctx.moveTo(corners.topLeft.x, corners.topLeft.y);
-    ctx.lineTo(corners.topRight.x, corners.topRight.y);
-    ctx.lineTo(corners.bottomRight.x, corners.bottomRight.y);
-    ctx.lineTo(corners.bottomLeft.x, corners.bottomLeft.y);
+    ctx.moveTo(tl.x, tl.y);
+    ctx.lineTo(tr.x, tr.y);
+    ctx.lineTo(br.x, br.y);
+    ctx.lineTo(bl.x, bl.y);
     ctx.closePath();
-
-    // Fill
     ctx.fillStyle = fillColor;
     ctx.fill();
 
-    // Stroke
+    // Draw border
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // Draw corner circles
-    const drawCorner = (x: number, y: number) => {
+    // Draw corner markers
+    const cornerSize = 12;
+    const drawCorner = (p: { x: number; y: number }) => {
       ctx.beginPath();
-      ctx.arc(x, y, 8, 0, 2 * Math.PI);
+      ctx.arc(p.x, p.y, cornerSize, 0, 2 * Math.PI);
       ctx.fillStyle = strokeColor;
       ctx.fill();
-      ctx.strokeStyle = 'white';
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
       ctx.lineWidth = 2;
       ctx.stroke();
     };
 
-    drawCorner(corners.topLeft.x, corners.topLeft.y);
-    drawCorner(corners.topRight.x, corners.topRight.y);
-    drawCorner(corners.bottomRight.x, corners.bottomRight.y);
-    drawCorner(corners.bottomLeft.x, corners.bottomLeft.y);
+    drawCorner(tl);
+    drawCorner(tr);
+    drawCorner(br);
+    drawCorner(bl);
 
-    // Draw confidence indicator
-    const indicatorText = `${Math.round(confidence * 100)}%`;
-    const indicatorX = 20;
-    const indicatorY = 40;
-
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(indicatorX - 10, indicatorY - 30, 100, 40);
-
-    ctx.fillStyle = strokeColor;
-    ctx.fillText(indicatorText, indicatorX, indicatorY);
-
-    // Draw stability indicator
-    if (isStable) {
-      const stableX = indicatorX;
-      const stableY = indicatorY + 40;
-
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(stableX - 10, stableY - 30, 120, 40);
-
-      ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.fillText('STABLE', stableX, stableY);
-    }
-  }, [corners, videoRef, isStable, stability]);
+  }, [corners, videoRef, isStable]);
 
   return (
     <canvas

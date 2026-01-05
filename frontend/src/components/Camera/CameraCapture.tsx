@@ -51,7 +51,7 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     stopDetection,
   } = useEdgeDetection(videoRef, {
     enabled: enableEdgeDetection,
-    targetFps: 8,
+    targetFps: 4,
     minArea: 3000,
     historySize: 3,
   });
