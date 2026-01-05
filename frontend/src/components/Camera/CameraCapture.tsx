@@ -41,6 +41,11 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
   // Store detected corners in ref to avoid re-render loops
   const detectedCornersRef = useRef<DetectedCorners | null>(null);
 
+  // Auto-capture state
+  const [autoCapturePending, setAutoCapturePending] = useState(false);
+  const stableStartTimeRef = useRef<number | null>(null);
+  const autoCaptureTriggeredRef = useRef(false);
+
   // Edge detection hook
   const {
     corners,
@@ -51,9 +56,9 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     stopDetection,
   } = useEdgeDetection(videoRef, {
     enabled: enableEdgeDetection,
-    targetFps: 4,
+    targetFps: 6,
     minArea: 3000,
-    historySize: 3,
+    historySize: 4,
   });
 
   // Start camera on mount
@@ -90,6 +95,50 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
   useEffect(() => {
     detectedCornersRef.current = corners;
   }, [corners]);
+
+  // Auto-capture when stable for 1 second
+  useEffect(() => {
+    // Reset if no corners or not stable enough
+    if (!corners || !isStable || stability < 0.6) {
+      stableStartTimeRef.current = null;
+      setAutoCapturePending(false);
+      return;
+    }
+
+    // Don't auto-capture twice
+    if (autoCaptureTriggeredRef.current) {
+      return;
+    }
+
+    // Start tracking stable time
+    if (stableStartTimeRef.current === null) {
+      stableStartTimeRef.current = Date.now();
+    }
+    setAutoCapturePending(true);
+
+    // Set up interval to check duration
+    const checkInterval = setInterval(() => {
+      if (stableStartTimeRef.current === null) {
+        clearInterval(checkInterval);
+        return;
+      }
+
+      const stableDuration = Date.now() - stableStartTimeRef.current;
+      if (stableDuration >= 800) {
+        // Trigger auto-capture after 0.8 seconds of stability
+        clearInterval(checkInterval);
+        autoCaptureTriggeredRef.current = true;
+
+        // Capture the image
+        const imageData = captureImage();
+        if (imageData) {
+          onCapture(imageData, detectedCornersRef.current);
+        }
+      }
+    }, 100);
+
+    return () => clearInterval(checkInterval);
+  }, [corners, isStable, stability, captureImage, onCapture]);
 
   const handleCapture = () => {
     const imageData = captureImage();
@@ -140,6 +189,16 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
       {stream && !error && !isLoading && edgeDetectionReady && !corners && (
         <div className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-lg bg-carbon-800/90 backdrop-blur-sm border border-carbon-700">
           <span className="text-xs font-medium text-carbon-400">Searching for document...</span>
+        </div>
+      )}
+      {stream && !error && !isLoading && corners && autoCapturePending && (
+        <div className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-lg bg-amber-500/20 backdrop-blur-sm border border-amber-500/50 animate-pulse">
+          <span className="text-xs font-medium text-amber-400">Hold steady...</span>
+        </div>
+      )}
+      {stream && !error && !isLoading && corners && !autoCapturePending && !isStable && (
+        <div className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-lg bg-carbon-800/90 backdrop-blur-sm border border-carbon-700">
+          <span className="text-xs font-medium text-amber-400">Document found - hold steady</span>
         </div>
       )}
 
