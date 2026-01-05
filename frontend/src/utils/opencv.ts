@@ -221,13 +221,29 @@ function extractCorners(contour: any): Omit<DetectedCorners, 'confidence'> {
 }
 
 function orderPoints(points: Array<{ x: number; y: number }>) {
-  // Sort by y-coordinate
-  points.sort((a, b) => a.y - b.y);
+  // More robust ordering using sum and difference of coordinates
+  // This works better for tilted documents
 
-  // Top two points
-  const top = points.slice(0, 2).sort((a, b) => a.x - b.x);
-  // Bottom two points
-  const bottom = points.slice(2, 4).sort((a, b) => a.x - b.x);
+  const pts = [...points];
 
-  return [top[0], top[1], bottom[1], bottom[0]];
+  // Top-left has smallest sum (x + y)
+  // Bottom-right has largest sum (x + y)
+  const sums = pts.map((p, i) => ({ i, sum: p.x + p.y }));
+  sums.sort((a, b) => a.sum - b.sum);
+  const topLeftIdx = sums[0].i;
+  const bottomRightIdx = sums[3].i;
+
+  // Top-right has smallest difference (y - x), i.e., largest (x - y)
+  // Bottom-left has largest difference (y - x)
+  const diffs = pts.map((p, i) => ({ i, diff: p.y - p.x }));
+  diffs.sort((a, b) => a.diff - b.diff);
+  const topRightIdx = diffs[0].i;
+  const bottomLeftIdx = diffs[3].i;
+
+  return [
+    pts[topLeftIdx],
+    pts[topRightIdx],
+    pts[bottomRightIdx],
+    pts[bottomLeftIdx]
+  ];
 }
