@@ -134,8 +134,8 @@ export class TemporalFilter {
    * Check if detection is stable (enough consistent history)
    */
   isStable(): boolean {
-    // Stable if we have at least 6 consistent detections (outliers already rejected)
-    return this.history.length >= 6;
+    // Stable if we have at least 4 consistent detections (outliers already rejected)
+    return this.history.length >= 4;
   }
 
   /**

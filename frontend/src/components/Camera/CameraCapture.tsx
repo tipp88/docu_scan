@@ -43,9 +43,7 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
 
   // Auto-capture state
   const [autoCapturePending, setAutoCapturePending] = useState(false);
-  const stableStartTimeRef = useRef<number | null>(null);
   const autoCaptureTriggeredRef = useRef(false);
-  const isStableRef = useRef(false);
 
   // Edge detection hook
   const {
@@ -97,61 +95,38 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
     detectedCornersRef.current = corners;
   }, [corners]);
 
-  // Keep isStable in ref for interval access
-  useEffect(() => {
-    isStableRef.current = isStable;
-  }, [isStable]);
-
-  // Auto-capture when stable for ~0.5 seconds
+  // Auto-capture immediately when stable (no timer needed - stability means consistent frames)
   useEffect(() => {
     // Don't auto-capture twice
     if (autoCaptureTriggeredRef.current) {
       return;
     }
 
-    // Need corners to be detected
-    if (!corners) {
-      stableStartTimeRef.current = null;
+    // Need corners and stability
+    if (!corners || !isStable) {
       setAutoCapturePending(false);
       return;
     }
 
-    // If stable, start or continue the timer
-    if (isStable) {
-      if (stableStartTimeRef.current === null) {
-        stableStartTimeRef.current = Date.now();
+    // Show pending indicator
+    setAutoCapturePending(true);
+
+    // Capture immediately - isStable means we have enough consistent frames
+    // Small delay just for visual feedback
+    const captureTimeout = setTimeout(() => {
+      if (autoCaptureTriggeredRef.current) return;
+
+      autoCaptureTriggeredRef.current = true;
+      setAutoCapturePending(false);
+
+      console.log('Auto-capture triggered, corners ref:', detectedCornersRef.current);
+      const imageData = captureImage();
+      if (imageData) {
+        onCapture(imageData, detectedCornersRef.current);
       }
-      setAutoCapturePending(true);
-    }
+    }, 200); // 200ms delay for visual feedback only
 
-    // Set up interval to check duration (uses ref for current isStable value)
-    const checkInterval = setInterval(() => {
-      if (autoCaptureTriggeredRef.current) {
-        clearInterval(checkInterval);
-        return;
-      }
-
-      // Only capture if stable and timer is running
-      if (stableStartTimeRef.current === null || !isStableRef.current) {
-        return;
-      }
-
-      const stableDuration = Date.now() - stableStartTimeRef.current;
-      if (stableDuration >= 500) {
-        // Trigger auto-capture
-        clearInterval(checkInterval);
-        autoCaptureTriggeredRef.current = true;
-        setAutoCapturePending(false);
-
-        console.log('Auto-capture triggered, corners ref:', detectedCornersRef.current);
-        const imageData = captureImage();
-        if (imageData) {
-          onCapture(imageData, detectedCornersRef.current);
-        }
-      }
-    }, 50);
-
-    return () => clearInterval(checkInterval);
+    return () => clearTimeout(captureTimeout);
   }, [corners, isStable, captureImage, onCapture]);
 
   const handleCapture = () => {

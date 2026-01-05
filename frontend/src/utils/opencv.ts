@@ -106,18 +106,18 @@ export function detectDocumentEdges(
     cv.dilate(edges, dilated, kernel);
     kernel.delete();
 
-    // Find contours
+    // Find only external contours (ignores internal shapes/noise)
     cv.findContours(
       dilated,
       contours,
       hierarchy,
-      cv.RETR_LIST,
+      cv.RETR_EXTERNAL,
       cv.CHAIN_APPROX_SIMPLE
     );
 
-    // Calculate minimum area - at least 5% of image
+    // Calculate minimum area - at least 8% of image (filters out noise on textured backgrounds)
     const imageArea = mat.rows * mat.cols;
-    const dynamicMinArea = Math.max(minArea, imageArea * 0.05);
+    const dynamicMinArea = Math.max(minArea, imageArea * 0.08);
 
     // Collect ALL quadrilateral contours with their areas
     const candidates: { contour: any; area: number }[] = [];
