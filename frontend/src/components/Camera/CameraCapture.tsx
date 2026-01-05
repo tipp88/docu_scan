@@ -143,6 +143,7 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
         autoCaptureTriggeredRef.current = true;
         setAutoCapturePending(false);
 
+        console.log('Auto-capture triggered, corners ref:', detectedCornersRef.current);
         const imageData = captureImage();
         if (imageData) {
           onCapture(imageData, detectedCornersRef.current);

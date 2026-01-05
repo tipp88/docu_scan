@@ -95,11 +95,11 @@ export function detectDocumentEdges(
     // Convert to grayscale
     cv.cvtColor(mat, gray, cv.COLOR_RGBA2GRAY);
 
-    // Moderate blur to smooth noise but keep edges
-    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+    // 7x7 blur - balances ignoring fold lines vs detecting edges
+    cv.GaussianBlur(gray, blurred, new cv.Size(7, 7), 0);
 
-    // Canny edge detection with moderate thresholds
-    cv.Canny(blurred, edges, 30, 90);
+    // Canny edge detection
+    cv.Canny(blurred, edges, 40, 120);
 
     // Dilate to connect broken lines
     const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));

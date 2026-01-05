@@ -95,11 +95,11 @@ function App() {
   const { downloadPDF, uploadToPaperless, isExporting, error: exportError, progress } = useExport();
 
   const handleCapture = async (imageData: string, detectedCorners?: DetectedCorners | null) => {
-    console.log('Image captured, showing preview for corner adjustment');
+    console.log('Image captured, detectedCorners:', detectedCorners);
     setCapturedImage(imageData);
 
-    // Use detected corners if available and confidence is high enough
-    if (detectedCorners && detectedCorners.confidence > 0.5) {
+    // Use detected corners if available (lowered threshold to 0.3)
+    if (detectedCorners && detectedCorners.confidence > 0.3) {
       // Convert pixel coordinates to normalized (0-1) coordinates
       const img = new Image();
       img.src = imageData;
