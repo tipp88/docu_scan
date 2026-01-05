@@ -124,8 +124,8 @@ export function CameraCapture({ onCapture, onError }: CameraCaptureProps) {
       }
 
       const stableDuration = Date.now() - stableStartTimeRef.current;
-      if (stableDuration >= 800) {
-        // Trigger auto-capture after 0.8 seconds of stability
+      if (stableDuration >= 400) {
+        // Trigger auto-capture after 0.4 seconds of stability
         clearInterval(checkInterval);
         autoCaptureTriggeredRef.current = true;
 

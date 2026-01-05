@@ -95,32 +95,17 @@ export function detectDocumentEdges(
     // Convert to grayscale
     cv.cvtColor(mat, gray, cv.COLOR_RGBA2GRAY);
 
-    // Apply bilateral filter to reduce noise while keeping edges sharp
-    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+    // Heavy blur to ignore fold lines and internal details
+    cv.GaussianBlur(gray, blurred, new cv.Size(9, 9), 0);
 
-    // Use adaptive threshold for better edge detection in varying lighting
-    const thresh = new cv.Mat();
-    cv.adaptiveThreshold(
-      blurred,
-      thresh,
-      255,
-      cv.ADAPTIVE_THRESH_GAUSSIAN_C,
-      cv.THRESH_BINARY,
-      11,
-      2
-    );
+    // Canny with higher thresholds to only detect strong outer edges
+    cv.Canny(blurred, edges, 50, 150);
 
-    // Also try Canny with lower thresholds
-    cv.Canny(blurred, edges, 30, 100);
-
-    // Dilate edges to connect broken lines
-    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3));
+    // Dilate to connect broken lines, then close to fill gaps
+    const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
     cv.dilate(edges, dilated, kernel);
+    cv.morphologyEx(dilated, dilated, cv.MORPH_CLOSE, kernel);
     kernel.delete();
-
-    // Combine adaptive threshold and Canny results
-    cv.bitwise_or(dilated, thresh, edges);
-    thresh.delete();
 
     // Find contours
     cv.findContours(
@@ -131,24 +116,23 @@ export function detectDocumentEdges(
       cv.CHAIN_APPROX_SIMPLE
     );
 
-    // Calculate minimum area based on image size (at least 2% of image)
+    // Calculate minimum area - at least 10% of image to ignore small shapes
     const imageArea = mat.rows * mat.cols;
-    const dynamicMinArea = Math.max(minArea, imageArea * 0.02);
+    const dynamicMinArea = Math.max(minArea, imageArea * 0.1);
 
-    // Find the largest quadrilateral contour
-    let maxArea = dynamicMinArea;
-    let bestContour: any = null;
+    // Collect ALL quadrilateral contours with their areas
+    const candidates: { contour: any; area: number }[] = [];
 
     for (let i = 0; i < contours.size(); i++) {
       const contour = contours.get(i);
       const area = cv.contourArea(contour);
 
-      if (area > maxArea) {
+      if (area > dynamicMinArea) {
         const perimeter = cv.arcLength(contour, true);
         const approx = new cv.Mat();
 
         // Try multiple epsilon values for polygon approximation
-        const epsilons = [0.02, 0.03, 0.04, 0.05];
+        const epsilons = [0.02, 0.03, 0.04, 0.05, 0.06];
 
         for (const eps of epsilons) {
           cv.approxPolyDP(contour, approx, eps * perimeter, true);
@@ -159,9 +143,7 @@ export function detectDocumentEdges(
 
             // Relaxed aspect ratio filter
             if (aspectRatio >= 0.2 && aspectRatio <= 5.0) {
-              maxArea = area;
-              if (bestContour) bestContour.delete();
-              bestContour = approx.clone();
+              candidates.push({ contour: approx.clone(), area });
             }
             break;
           }
@@ -170,6 +152,20 @@ export function detectDocumentEdges(
       }
 
       contour.delete();
+    }
+
+    // Select the LARGEST quadrilateral (most likely to be full document)
+    let bestContour: any = null;
+    let maxArea = 0;
+
+    for (const candidate of candidates) {
+      if (candidate.area > maxArea) {
+        if (bestContour) bestContour.delete();
+        bestContour = candidate.contour;
+        maxArea = candidate.area;
+      } else {
+        candidate.contour.delete();
+      }
     }
 
     if (!bestContour) {
