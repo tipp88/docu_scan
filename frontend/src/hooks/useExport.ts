@@ -8,6 +8,8 @@ interface ExportOptions {
   filename?: string;
   title?: string;
   tags?: string[];
+  paperlessUrl?: string;
+  paperlessToken?: string;
 }
 
 export function useExport() {
@@ -123,6 +125,8 @@ export function useExport() {
           images,
           title: options.title || `Scanned Document ${new Date().toLocaleDateString()}`,
           tags: options.tags || ['docu_scan'],
+          paperless_url: options.paperlessUrl,
+          paperless_token: options.paperlessToken,
         }));
       });
 

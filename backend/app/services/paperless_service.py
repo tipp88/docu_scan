@@ -9,7 +9,9 @@ async def upload_to_paperless(
     title: str,
     tags: Optional[List[str]] = None,
     correspondent: Optional[str] = None,
-    document_type: Optional[str] = None
+    document_type: Optional[str] = None,
+    paperless_url: Optional[str] = None,
+    paperless_token: Optional[str] = None
 ) -> Dict:
     """
     Upload a PDF document to Paperless-ngx via REST API
@@ -20,6 +22,8 @@ async def upload_to_paperless(
         tags: List of tag names (will be converted to IDs)
         correspondent: Correspondent name
         document_type: Document type name
+        paperless_url: Override Paperless URL (from frontend settings)
+        paperless_token: Override Paperless token (from frontend settings)
 
     Returns:
         Response from Paperless API with document ID
@@ -27,10 +31,14 @@ async def upload_to_paperless(
     Raises:
         httpx.HTTPError: If upload fails
     """
-    if not settings.paperless_enabled:
-        raise ValueError("Paperless-ngx integration is not enabled")
+    # Use provided URL/token or fall back to settings
+    url = paperless_url or settings.paperless_url
+    token = paperless_token or settings.paperless_token
 
-    if not settings.paperless_token:
+    if not url:
+        raise ValueError("Paperless URL is not configured")
+
+    if not token:
         raise ValueError("Paperless API token is not configured")
 
     async with httpx.AsyncClient(timeout=60.0) as client:
@@ -38,21 +46,21 @@ async def upload_to_paperless(
         tag_ids = []
         if tags:
             for tag_name in tags:
-                tag_id = await _get_or_create_tag_id(client, tag_name)
+                tag_id = await _get_or_create_tag_id(client, tag_name, url, token)
                 if tag_id:
                     tag_ids.append(tag_id)
 
         # Get correspondent and document_type IDs if names provided
         correspondent_id = None
         if correspondent:
-            correspondent_id = await _get_correspondent_id(client, correspondent)
+            correspondent_id = await _get_correspondent_id(client, correspondent, url, token)
 
         document_type_id = None
         if document_type:
-            document_type_id = await _get_document_type_id(client, document_type)
+            document_type_id = await _get_document_type_id(client, document_type, url, token)
 
         # Prepare multipart form data
-        url = f"{settings.paperless_url}/api/documents/post_document/"
+        upload_url = f"{url}/api/documents/post_document/"
 
         # Use bytes directly, not BytesIO (AsyncClient requires it)
         files = {
@@ -74,11 +82,11 @@ async def upload_to_paperless(
 
         # Make request
         response = await client.post(
-            url,
+            upload_url,
             files=files,
             data=data,
             headers={
-                'Authorization': f'Token {settings.paperless_token}'
+                'Authorization': f'Token {token}'
             }
         )
 
@@ -92,15 +100,15 @@ async def upload_to_paperless(
         return task_id
 
 
-async def _get_or_create_tag_id(client: httpx.AsyncClient, tag_name: str) -> Optional[int]:
+async def _get_or_create_tag_id(client: httpx.AsyncClient, tag_name: str, paperless_url: str, paperless_token: str) -> Optional[int]:
     """Get tag ID by name, creating it if it doesn't exist"""
     try:
         # Try to find existing tag - use URL encoding for name search
         import urllib.parse
         encoded_name = urllib.parse.quote(tag_name)
         response = await client.get(
-            f"{settings.paperless_url}/api/tags/?name__iexact={encoded_name}",
-            headers={'Authorization': f'Token {settings.paperless_token}'}
+            f"{paperless_url}/api/tags/?name__iexact={encoded_name}",
+            headers={'Authorization': f'Token {paperless_token}'}
         )
         response.raise_for_status()
         results = response.json().get('results', [])
@@ -110,9 +118,9 @@ async def _get_or_create_tag_id(client: httpx.AsyncClient, tag_name: str) -> Opt
 
         # Create new tag
         create_response = await client.post(
-            f"{settings.paperless_url}/api/tags/",
+            f"{paperless_url}/api/tags/",
             json={'name': tag_name},
-            headers={'Authorization': f'Token {settings.paperless_token}'}
+            headers={'Authorization': f'Token {paperless_token}'}
         )
         create_response.raise_for_status()
         return create_response.json()['id']
@@ -123,14 +131,14 @@ async def _get_or_create_tag_id(client: httpx.AsyncClient, tag_name: str) -> Opt
     return None
 
 
-async def _get_correspondent_id(client: httpx.AsyncClient, correspondent_name: str) -> Optional[int]:
+async def _get_correspondent_id(client: httpx.AsyncClient, correspondent_name: str, paperless_url: str, paperless_token: str) -> Optional[int]:
     """Get correspondent ID by name"""
     try:
         import urllib.parse
         encoded_name = urllib.parse.quote(correspondent_name)
         response = await client.get(
-            f"{settings.paperless_url}/api/correspondents/?name__iexact={encoded_name}",
-            headers={'Authorization': f'Token {settings.paperless_token}'}
+            f"{paperless_url}/api/correspondents/?name__iexact={encoded_name}",
+            headers={'Authorization': f'Token {paperless_token}'}
         )
         response.raise_for_status()
         results = response.json().get('results', [])
@@ -140,14 +148,14 @@ async def _get_correspondent_id(client: httpx.AsyncClient, correspondent_name: s
         return None
 
 
-async def _get_document_type_id(client: httpx.AsyncClient, document_type_name: str) -> Optional[int]:
+async def _get_document_type_id(client: httpx.AsyncClient, document_type_name: str, paperless_url: str, paperless_token: str) -> Optional[int]:
     """Get document type ID by name"""
     try:
         import urllib.parse
         encoded_name = urllib.parse.quote(document_type_name)
         response = await client.get(
-            f"{settings.paperless_url}/api/document_types/?name__iexact={encoded_name}",
-            headers={'Authorization': f'Token {settings.paperless_token}'}
+            f"{paperless_url}/api/document_types/?name__iexact={encoded_name}",
+            headers={'Authorization': f'Token {paperless_token}'}
         )
         response.raise_for_status()
         results = response.json().get('results', [])

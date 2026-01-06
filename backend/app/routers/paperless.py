@@ -22,6 +22,8 @@ class PaperlessUploadRequest(BaseModel):
     correspondent: Optional[str] = None
     document_type: Optional[str] = None
     compression_quality: Optional[int] = None
+    paperless_url: Optional[str] = None  # Override URL from frontend
+    paperless_token: Optional[str] = None  # Override token from frontend
 
 
 @router.post("/upload")
@@ -52,7 +54,9 @@ async def upload_document(request: PaperlessUploadRequest):
             title=request.title,
             tags=request.tags,
             correspondent=request.correspondent,
-            document_type=request.document_type
+            document_type=request.document_type,
+            paperless_url=request.paperless_url,
+            paperless_token=request.paperless_token
         )
 
         return {

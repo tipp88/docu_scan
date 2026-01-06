@@ -190,6 +190,8 @@ function App() {
     const result = await uploadToPaperless(pages, {
       title: `Scanned Document ${new Date().toLocaleDateString()}`,
       tags,
+      paperlessUrl: settings.paperlessUrl,
+      paperlessToken: settings.paperlessToken,
     });
 
     if (result) {
