@@ -41,9 +41,12 @@ The setup script will:
 - ✓ Install Python 3 and create virtual environment
 - ✓ Install all dependencies
 - ✓ Build the frontend
-- ✓ Configure nginx
+- ✓ Generate self-signed SSL certificates
 - ✓ Create systemd service for backend
-- ✓ Start all services
+- ✓ Start backend service
+- ✓ Display nginx configuration to add manually
+
+**Important:** The script does NOT configure nginx automatically to avoid conflicts with your existing setup.
 
 ## Post-Installation Configuration
 
@@ -81,41 +84,171 @@ After editing, restart the backend:
 systemctl restart docuscan-backend
 ```
 
-### 2. Configure Nginx Domain (Optional)
+### 2. Configure Nginx with HTTPS (REQUIRED for camera access)
 
-Edit nginx configuration:
+The setup script provides nginx configuration at the end. You have two options:
+
+#### Option A: Subdomain (Recommended)
+
+Create a new site configuration:
 
 ```bash
 nano /etc/nginx/sites-available/docuscan
 ```
 
-Change the `server_name`:
+Add this configuration:
 
 ```nginx
 server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name docuscan.yourdomain.com;  # Change this
+
+    # SSL Configuration
+    ssl_certificate /opt/docuscan/ssl/docuscan.crt;
+    ssl_certificate_key /opt/docuscan/ssl/docuscan.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    # Frontend
+    location / {
+        root /opt/docuscan/frontend/dist;
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
+    }
+
+    # Backend API
+    location /api/ {
+        proxy_pass http://localhost:3001/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+
+    client_max_body_size 50M;
+}
+
+# HTTP redirect
+server {
     listen 80;
-    server_name your-domain.com;  # Change this
-    # ... rest of config
+    listen [::]:80;
+    server_name docuscan.yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}
+```
+
+Enable and reload:
+
+```bash
+ln -s /etc/nginx/sites-available/docuscan /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+```
+
+#### Option B: Path-Based (add to existing dashboard config)
+
+Edit your existing nginx site:
+
+```bash
+nano /etc/nginx/sites-available/your-dashboard
+```
+
+Add to your existing SSL server block:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+
+    # Your existing SSL config...
+
+    # Add DocuScan paths
+    location /docuscan/ {
+        alias /opt/docuscan/frontend/dist/;
+        try_files $uri $uri/ /docuscan/index.html;
+    }
+
+    location /docuscan/api/ {
+        proxy_pass http://localhost:3001/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 300s;
+        client_max_body_size 50M;
+    }
 }
 ```
 
 Reload nginx:
 
 ```bash
-nginx -t  # Test configuration
-systemctl reload nginx
+nginx -t && systemctl reload nginx
 ```
 
-### 3. Set Up SSL with Let's Encrypt (Optional)
+### 3. SSL Certificates for Camera Access
+
+**Camera access REQUIRES HTTPS.** The setup script creates self-signed certificates at `/opt/docuscan/ssl/`.
+
+#### Using Self-Signed Certificates (Development/Internal)
+
+**Pros:**
+- Works immediately, no domain required
+- Good for internal networks
+- Free
+
+**Cons:**
+- Browser shows security warning
+- Need to accept certificate in each browser
+
+**To accept self-signed certificate:**
+1. Visit https://your-server
+2. Click "Advanced" or "Show Details"
+3. Click "Proceed to site" or "Accept Risk"
+4. The camera will now work
+
+#### Using Let's Encrypt (Production - Recommended)
+
+For a proper SSL certificate without warnings:
 
 ```bash
 # Install certbot
 apt-get install -y certbot python3-certbot-nginx
 
-# Get SSL certificate (replace with your domain)
-certbot --nginx -d your-domain.com
+# Get certificate for subdomain
+certbot --nginx -d docuscan.yourdomain.com
 
 # Certbot will automatically update nginx config
+```
+
+**Requirements:**
+- Public domain name pointing to your server
+- Port 80/443 accessible from internet
+- Valid DNS records
+
+After getting Let's Encrypt cert, update nginx config to use:
+```nginx
+ssl_certificate /etc/letsencrypt/live/docuscan.yourdomain.com/fullchain.pem;
+ssl_certificate_key /etc/letsencrypt/live/docuscan.yourdomain.com/privkey.pem;
+```
+
+#### Using Existing SSL Certificates
+
+If you already have SSL certs for your domain, use them in the nginx config:
+
+```nginx
+ssl_certificate /path/to/your/cert.crt;
+ssl_certificate_key /path/to/your/cert.key;
 ```
 
 ## Service Management

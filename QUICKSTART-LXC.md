@@ -36,7 +36,26 @@ chmod +x setup-lxc.sh
 
 ## Post-Setup
 
-Configure Paperless (optional):
+### 1. Add to Your Nginx Config
+
+The script will display the nginx config to add. Two options:
+
+**Option A: Add to existing HTTPS site**
+```bash
+nano /etc/nginx/sites-available/your-dashboard
+# Add the location blocks shown by setup script
+nginx -t && systemctl reload nginx
+```
+
+**Option B: Create new subdomain**
+```bash
+nano /etc/nginx/sites-available/docuscan
+# Copy config from setup script output
+ln -s /etc/nginx/sites-available/docuscan /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+```
+
+### 2. Configure Paperless (optional)
 ```bash
 nano /opt/docuscan/backend/.env
 systemctl restart docuscan-backend
@@ -44,12 +63,13 @@ systemctl restart docuscan-backend
 
 ## Access
 
-Get container IP:
-```bash
-hostname -I | awk '{print $1}'
-```
+**IMPORTANT: Camera requires HTTPS!**
 
-Access at: `http://container-ip`
+Self-signed cert created at: `/opt/docuscan/ssl/`
+
+Access at: `https://your-domain/` or `https://your-domain/docuscan/`
+
+Accept the self-signed certificate warning in your browser for camera to work.
 
 ## Common Commands
 
