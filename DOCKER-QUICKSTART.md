@@ -1,10 +1,39 @@
 # DocuScan - Docker Quick Start
 
-## Build Once, Run Anywhere
+## Option 1: Pull Pre-Built Image (Recommended)
 
-Build the Docker image on your development machine, then deploy to your LXC container.
+The easiest way to deploy DocuScan is to pull the pre-built image from GitHub Container Registry:
 
-## Step 1: Build the Image (on your dev machine)
+```bash
+# Enter your LXC container
+lxc exec your-container -- bash
+
+# Install Docker if needed
+apt-get update && apt-get install -y docker.io
+systemctl start docker
+systemctl enable docker
+
+# Pull the latest pre-built image
+docker pull ghcr.io/tipp88/docu_scan:latest
+
+# Run the container
+docker run -d \
+  -p 8443:443 \
+  -p 8080:80 \
+  --name docuscan \
+  --restart unless-stopped \
+  ghcr.io/tipp88/docu_scan:latest
+```
+
+Visit: `https://your-lxc-ip:8443`
+
+**Note:** Pre-built images are automatically built from the main branch and version tags.
+
+## Option 2: Build and Transfer Manually
+
+If you prefer to build the image yourself:
+
+### Step 1: Build the Image (on your dev machine)
 
 ```bash
 # Clone repository
@@ -18,7 +47,7 @@ chmod +x build-docker.sh
 # This creates a production-ready image with everything built
 ```
 
-## Step 2: Save and Transfer to LXC
+### Step 2: Save and Transfer to LXC
 
 ```bash
 # Save image to file
@@ -28,7 +57,7 @@ docker save docuscan:latest | gzip > docuscan-image.tar.gz
 lxc file push docuscan-image.tar.gz your-container/tmp/
 ```
 
-## Step 3: Load and Run in LXC
+### Step 3: Load and Run in LXC
 
 ```bash
 # Enter LXC container
@@ -74,7 +103,7 @@ docker run -d \
   -e PAPERLESS_TOKEN=your-api-token \
   --name docuscan \
   --restart unless-stopped \
-  docuscan:latest
+  ghcr.io/tipp88/docu_scan:latest
 ```
 
 ## Integration with Existing Nginx Dashboard
@@ -115,6 +144,18 @@ docker stop docuscan && docker rm docuscan
 ```
 
 ## Update
+
+### Option 1: Pull Latest from Registry (Recommended)
+
+```bash
+# In your LXC container
+docker stop docuscan
+docker rm docuscan
+docker pull ghcr.io/tipp88/docu_scan:latest
+docker run -d -p 8443:443 -p 8080:80 --name docuscan --restart unless-stopped ghcr.io/tipp88/docu_scan:latest
+```
+
+### Option 2: Rebuild and Transfer
 
 ```bash
 # On dev machine: rebuild

@@ -4,7 +4,21 @@ This guide explains how to deploy DocuScan using Docker with a pre-built product
 
 ## Quick Start
 
-### Option 1: Build and Run Locally
+### Option 1: Pull Pre-Built Image (Recommended)
+
+```bash
+# Pull the latest pre-built image from GitHub Container Registry
+docker pull ghcr.io/tipp88/docu_scan:latest
+
+# Run the container
+docker run -d -p 8443:443 -p 8080:80 --name docuscan ghcr.io/tipp88/docu_scan:latest
+
+# Access at https://localhost:8443
+```
+
+**Note:** Images are automatically built and published for each push to main and version tags.
+
+### Option 2: Build and Run Locally
 
 ```bash
 # Clone repository
@@ -15,13 +29,6 @@ cd docu_scan
 docker compose -f docker-compose.standalone.yml up -d
 
 # Access at https://localhost:8443
-```
-
-### Option 2: Pull from Docker Hub (when available)
-
-```bash
-docker pull tipp88/docuscan:latest
-docker run -d -p 8443:443 -p 8080:80 --name docuscan tipp88/docuscan:latest
 ```
 
 ## What's Included
