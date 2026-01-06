@@ -1,26 +1,35 @@
 # DocuScan - LXC Quick Start
 
-## One-Command Setup
+## One-Command Setup (from inside container)
 
 ```bash
-# Copy project to container
-lxc file push -r . container-name/tmp/Docu_Scan/
+# Enter container (from host)
+lxc exec your-container-name -- bash
 
-# Run setup inside container
-lxc exec container-name -- bash -c "cd /tmp/Docu_Scan && chmod +x setup-lxc.sh && ./setup-lxc.sh"
+# Clone and setup (inside container)
+apt-get update && apt-get install -y git && \
+cd /tmp && \
+git clone https://github.com/tipp88/docu_scan.git && \
+cd docu_scan && \
+chmod +x setup-lxc.sh && \
+./setup-lxc.sh
 ```
 
-## Manual Steps (if preferred)
+## Step-by-Step (from inside container)
 
 ```bash
-# 1. Enter container
-lxc exec container-name -- bash
+# 1. Enter container (run from host)
+lxc exec your-container-name -- bash
 
-# 2. Copy project (from outside container)
-# From host: lxc file push -r /path/to/Docu_Scan/ container-name/tmp/
+# 2. Install git (inside container)
+apt-get update && apt-get install -y git
 
-# 3. Run setup
-cd /tmp/Docu_Scan
+# 3. Clone repository
+cd /tmp
+git clone https://github.com/tipp88/docu_scan.git
+cd docu_scan
+
+# 4. Run setup
 chmod +x setup-lxc.sh
 ./setup-lxc.sh
 ```
@@ -54,8 +63,9 @@ systemctl restart docuscan-backend
 # Reload nginx
 systemctl reload nginx
 
-# Update app
-cd /opt/docuscan && git pull
+# Update app from GitHub
+cd /opt/docuscan
+git pull origin main
 cd frontend && npm run build
 systemctl restart docuscan-backend && systemctl reload nginx
 ```
@@ -65,5 +75,33 @@ systemctl restart docuscan-backend && systemctl reload nginx
 - Application: `/opt/docuscan/`
 - Nginx config: `/etc/nginx/sites-available/docuscan`
 - Systemd service: `/etc/systemd/system/docuscan-backend.service`
+
+## Troubleshooting
+
+### Check Services
+```bash
+systemctl status docuscan-backend
+systemctl status nginx
+```
+
+### View Logs
+```bash
+# Backend logs
+journalctl -u docuscan-backend -n 50 --no-pager
+
+# Nginx logs
+tail -20 /var/log/nginx/error.log
+```
+
+### Test Backend API
+```bash
+curl http://localhost:3001/health
+```
+
+### Test Nginx
+```bash
+nginx -t
+curl http://localhost/
+```
 
 See `DEPLOYMENT.md` for full documentation.

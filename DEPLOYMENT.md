@@ -6,30 +6,28 @@ This guide explains how to deploy DocuScan in an LXC container with nginx.
 
 - LXC container running Ubuntu 22.04 or 24.04
 - Root access to the container
-- Nginx already installed (or will be installed by setup script)
+- Internet connection in the container
+- Git installed (or will be installed by setup script)
 
 ## Quick Start
 
-### 1. Copy Project to Container
-
-From your host machine:
+### 1. Enter Container
 
 ```bash
-# Copy the entire project to your LXC container
-lxc file push -r /path/to/Docu_Scan/ container-name/tmp/
-
-# Or use scp/rsync if you have SSH access
-rsync -avz /path/to/Docu_Scan/ root@container-ip:/tmp/Docu_Scan/
+# Enter your LXC container
+lxc exec your-container-name -- bash
 ```
 
-### 2. Enter Container and Run Setup
+### 2. Clone Repository and Run Setup
 
 ```bash
-# Enter the container
-lxc exec container-name -- bash
+# Install git if not present
+apt-get update && apt-get install -y git
 
-# Navigate to project
-cd /tmp/Docu_Scan
+# Clone the repository
+cd /tmp
+git clone https://github.com/tipp88/docu_scan.git
+cd docu_scan
 
 # Make setup script executable
 chmod +x setup-lxc.sh
