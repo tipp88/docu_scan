@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -5,8 +6,9 @@ import {
   TouchSensor,
   useSensor,
   useSensors,
+  DragOverlay,
 } from '@dnd-kit/core';
-import type { DragEndEvent } from '@dnd-kit/core';
+import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
 import {
   SortableContext,
   rectSortingStrategy,
@@ -37,25 +39,32 @@ export function SortablePageGrid({
   onEnhancementChange,
   onDeletePage,
 }: SortablePageGridProps) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+
   // Configure sensors for drag detection
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        // Require movement before drag starts (prevents conflict with tap)
-        distance: 8,
+        // Small movement threshold to start drag
+        distance: 5,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        // Delay to allow long-press to trigger first
-        delay: 200,
+        // Small delay and tolerance for touch
+        delay: 100,
         tolerance: 5,
       },
     })
   );
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveId(null);
 
     if (over && active.id !== over.id) {
       const oldIndex = pages.findIndex((p) => p.id === active.id);
@@ -63,6 +72,13 @@ export function SortablePageGrid({
       onReorder(oldIndex, newIndex);
     }
   };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+  };
+
+  const activePage = activeId ? pages.find(p => p.id === activeId) : null;
+  const activeIndex = activeId ? pages.findIndex(p => p.id === activeId) : -1;
 
   const handleTap = (pageId: string) => {
     if (selectionMode) {
@@ -82,7 +98,9 @@ export function SortablePageGrid({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <SortableContext items={pages.map(p => p.id)} strategy={rectSortingStrategy}>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -102,6 +120,23 @@ export function SortablePageGrid({
           ))}
         </div>
       </SortableContext>
+
+      {/* Drag overlay - shows the page being dragged */}
+      <DragOverlay adjustScale={false}>
+        {activePage ? (
+          <div className="page-thumbnail dragging-overlay">
+            <div className="relative aspect-[3/4]">
+              <img
+                src={activePage.processedImage}
+                alt={`Page ${activeIndex + 1}`}
+                className="w-full h-full object-cover"
+                style={{ transform: `rotate(${activePage.rotation}deg)` }}
+              />
+              <div className="page-number">{String(activeIndex + 1).padStart(2, '0')}</div>
+            </div>
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }

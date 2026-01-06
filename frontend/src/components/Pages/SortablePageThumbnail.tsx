@@ -1,7 +1,7 @@
+import { useRef, useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { DocumentPage, EnhancementMode } from '../../types/document';
-import { useLongPress } from '../../hooks/useLongPress';
 
 interface SortablePageThumbnailProps {
   page: DocumentPage;
@@ -50,11 +50,74 @@ export function SortablePageThumbnail({
     disabled: isDragDisabled,
   });
 
-  const longPressHandlers = useLongPress({
-    onLongPress,
-    onTap,
-    delay: 500,
-  });
+  // Track interactions
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLongPressTriggered = useRef(false);
+  const hasDragged = useRef(false);
+  const startPos = useRef<{ x: number; y: number } | null>(null);
+
+  const clearTimer = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
+  // Handle click for tap detection (works alongside drag)
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    // Don't trigger tap if we just finished dragging or long-pressing
+    if (hasDragged.current || isLongPressTriggered.current) {
+      hasDragged.current = false;
+      isLongPressTriggered.current = false;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    onTap();
+  }, [onTap]);
+
+  // Track drag state
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    hasDragged.current = false;
+    isLongPressTriggered.current = false;
+    startPos.current = { x: e.clientX, y: e.clientY };
+
+    // Start long press timer (only when not in selection mode)
+    if (!selectionMode) {
+      longPressTimer.current = setTimeout(() => {
+        isLongPressTriggered.current = true;
+        clearTimer();
+        onLongPress();
+      }, 500);
+    }
+  }, [selectionMode, onLongPress, clearTimer]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!startPos.current) return;
+
+    const dx = e.clientX - startPos.current.x;
+    const dy = e.clientY - startPos.current.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // If moved, cancel long press and mark as dragging
+    if (distance > 5) {
+      clearTimer();
+      hasDragged.current = true;
+    }
+  }, [clearTimer]);
+
+  const handlePointerUp = useCallback(() => {
+    clearTimer();
+    startPos.current = null;
+  }, [clearTimer]);
+
+  const handlePointerCancel = useCallback(() => {
+    clearTimer();
+    startPos.current = null;
+    hasDragged.current = false;
+    isLongPressTriggered.current = false;
+  }, [clearTimer]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -62,29 +125,29 @@ export function SortablePageThumbnail({
     animationDelay: `${index * 50}ms`,
   };
 
-  // Combine handlers - use long press for interaction, but allow drag
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (!isDragDisabled) {
-      listeners?.onPointerDown?.(e);
-    }
-  };
+  // In selection mode: no drag listeners, just click handling
+  // In normal mode: attach drag listeners from @dnd-kit
+  const dragListeners = isDragDisabled ? {} : listeners;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className={`page-thumbnail animate-slide-up ${isDragging ? 'dragging' : ''} ${isSelected ? 'selected' : ''}`}
+      {...dragListeners}
+      onClick={handleClick}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onPointerLeave={handlePointerCancel}
+      className={`page-thumbnail animate-slide-up cursor-grab active:cursor-grabbing ${isDragging ? 'dragging' : ''} ${isSelected ? 'selected' : ''}`}
     >
-      <div
-        className="relative aspect-[3/4]"
-        {...longPressHandlers}
-        onPointerDown={handlePointerDown}
-      >
+      <div className="relative aspect-[3/4]">
         <img
           src={page.processedImage}
           alt={`Page ${index + 1}`}
-          className="w-full h-full object-cover pointer-events-none"
+          className="w-full h-full object-cover pointer-events-none select-none"
           style={{ transform: `rotate(${page.rotation}deg)` }}
           draggable={false}
         />
@@ -108,8 +171,6 @@ export function SortablePageThumbnail({
               }}
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
               className="px-2 py-1 rounded-lg bg-carbon-950/90 backdrop-blur-sm text-xs font-semibold text-carbon-200 border border-carbon-700 cursor-pointer hover:bg-carbon-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
               title="Change enhancement mode"
             >
@@ -129,8 +190,6 @@ export function SortablePageThumbnail({
               onDelete();
             }}
             onPointerDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
             className="absolute bottom-3 right-3 z-20 p-2 rounded-lg bg-crimson-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-crimson-500"
           >
             <TrashIcon />

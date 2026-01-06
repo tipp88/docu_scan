@@ -480,15 +480,26 @@ body {
 
 /* Drag and Drop */
 .page-thumbnail.dragging {
-  opacity: 0.5;
-  transform: scale(1.05) !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  z-index: 100;
+  opacity: 0.3;
+  transform: scale(0.98);
+}
+
+.page-thumbnail.dragging-overlay {
+  opacity: 1;
+  transform: scale(1.05);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(251, 191, 36, 0.5);
+  border-color: #fbbf24;
+  cursor: grabbing;
 }
 
 .page-thumbnail.drag-over {
   border-color: #fbbf24;
   border-style: dashed;
+}
+
+/* Smooth transitions for items shifting during drag */
+[data-sortable] {
+  transition: transform 200ms ease;
 }
 
 /* ============================================
