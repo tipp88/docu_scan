@@ -95,18 +95,19 @@ export function detectDocumentEdges(
     // Convert to grayscale
     cv.cvtColor(mat, gray, cv.COLOR_RGBA2GRAY);
 
-    // Strong blur to ignore background texture (11x11)
-    cv.GaussianBlur(gray, blurred, new cv.Size(11, 11), 0);
+    // Light blur
+    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
 
-    // Canny with higher thresholds to only detect strong document edges
-    cv.Canny(blurred, edges, 75, 200);
+    // Use Otsu's thresholding - perfect for white document on dark background
+    cv.threshold(blurred, edges, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
 
-    // Larger dilation to connect edges and fill gaps
+    // Morphological close to fill holes, then open to remove noise
     const kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5));
-    cv.dilate(edges, dilated, kernel);
+    cv.morphologyEx(edges, dilated, cv.MORPH_CLOSE, kernel);
+    cv.morphologyEx(dilated, dilated, cv.MORPH_OPEN, kernel);
     kernel.delete();
 
-    // Find only external contours (ignores internal shapes/noise)
+    // Find external contours
     cv.findContours(
       dilated,
       contours,
@@ -115,9 +116,9 @@ export function detectDocumentEdges(
       cv.CHAIN_APPROX_SIMPLE
     );
 
-    // Calculate minimum area - at least 15% of image (filters out background noise)
+    // Minimum area - 5% of image
     const imageArea = mat.rows * mat.cols;
-    const dynamicMinArea = Math.max(minArea, imageArea * 0.15);
+    const dynamicMinArea = Math.max(minArea, imageArea * 0.05);
 
     // Collect ALL quadrilateral contours with their areas
     const candidates: { contour: any; area: number }[] = [];
