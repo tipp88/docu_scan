@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { CameraCapture } from './components/Camera/CameraCapture';
 import { CornerAdjuster } from './components/Editor/CornerAdjuster';
 import { SettingsModal, useSettings } from './components/Settings/SettingsModal';
+import { PagePreviewModal } from './components/Pages/PagePreviewModal';
+import { SortablePageGrid } from './components/Pages/SortablePageGrid';
+import { SelectionModeHeader } from './components/Pages/SelectionModeHeader';
 import { useDocumentStore } from './stores/documentStore';
 import { useExport } from './hooks/useExport';
-import type { Point } from './types/document';
+import type { Point, EnhancementMode } from './types/document';
 import type { DetectedCorners } from './utils/opencv';
 
 type View = 'camera' | 'preview' | 'review' | 'export';
@@ -90,8 +93,16 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
+  // Page preview modal state
+  const [previewPageId, setPreviewPageId] = useState<string | null>(null);
+  const [retakePageId, setRetakePageId] = useState<string | null>(null);
+
+  // Multi-select mode state
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedPageIds, setSelectedPageIds] = useState<Set<string>>(new Set());
+
   const settings = useSettings();
-  const { pages, addPage, deletePage, updatePage, processPage, clear } = useDocumentStore();
+  const { pages, addPage, deletePage, deletePages, replacePage, updatePage, processPage, reorderPages, clear } = useDocumentStore();
   const { downloadPDF, uploadToPaperless, isExporting, error: exportError, progress } = useExport();
 
   const handleCapture = async (imageData: string, detectedCorners?: DetectedCorners | null) => {
@@ -136,7 +147,16 @@ function App() {
 
     try {
       setIsProcessing(true);
-      await addPage(capturedImage, corners);
+
+      if (retakePageId) {
+        // Replace existing page
+        await replacePage(retakePageId, capturedImage, corners);
+        setRetakePageId(null);
+      } else {
+        // Add new page
+        await addPage(capturedImage, corners);
+      }
+
       setCapturedImage(null);
       setView('camera');
     } catch (error) {
@@ -180,6 +200,83 @@ function App() {
   const handleError = (error: string) => {
     console.error('Camera error:', error);
   };
+
+  // Preview modal handlers
+  const handleOpenPreview = (pageId: string) => {
+    if (!selectionMode) {
+      setPreviewPageId(pageId);
+    }
+  };
+
+  const handleClosePreview = () => {
+    setPreviewPageId(null);
+  };
+
+  const handleDeleteFromPreview = () => {
+    if (previewPageId) {
+      deletePage(previewPageId);
+      setPreviewPageId(null);
+    }
+  };
+
+  const handleRetakeFromPreview = () => {
+    if (previewPageId) {
+      setRetakePageId(previewPageId);
+      setPreviewPageId(null);
+      setView('camera');
+    }
+  };
+
+  // Selection mode handlers
+  const handleLongPress = (pageId: string) => {
+    setSelectionMode(true);
+    setSelectedPageIds(new Set([pageId]));
+  };
+
+  const handleToggleSelection = (pageId: string) => {
+    setSelectedPageIds(prev => {
+      const next = new Set(prev);
+      if (next.has(pageId)) {
+        next.delete(pageId);
+      } else {
+        next.add(pageId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedPageIds.size === pages.length) {
+      setSelectedPageIds(new Set());
+    } else {
+      setSelectedPageIds(new Set(pages.map(p => p.id)));
+    }
+  };
+
+  const handleCancelSelection = () => {
+    setSelectionMode(false);
+    setSelectedPageIds(new Set());
+  };
+
+  const handleDeleteSelected = () => {
+    deletePages(Array.from(selectedPageIds));
+    handleCancelSelection();
+  };
+
+  // Reorder handler
+  const handleReorder = (fromIndex: number, toIndex: number) => {
+    reorderPages(fromIndex, toIndex);
+  };
+
+  // Enhancement change handler
+  const handleEnhancementChange = async (pageId: string, enhancement: EnhancementMode) => {
+    updatePage(pageId, { enhancement });
+    await processPage(pageId);
+  };
+
+  // Get current preview page
+  const previewPage = previewPageId ? pages.find(p => p.id === previewPageId) : null;
+  const previewPageNumber = previewPageId ? pages.findIndex(p => p.id === previewPageId) + 1 : 0;
 
   return (
     <div className="w-full h-screen flex flex-col bg-carbon-950 noise-overlay">
@@ -295,33 +392,44 @@ function App() {
         {view === 'review' && (
           <div className="w-full h-full overflow-y-auto p-4 animate-fade-in scrollbar-hide">
             <div className="max-w-5xl mx-auto pb-24">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="font-display text-2xl text-carbon-100 mb-1">Your Document</h2>
-                  <p className="text-carbon-400 text-sm">
-                    {pages.length} page{pages.length !== 1 ? 's' : ''} scanned
-                  </p>
-                </div>
-                {pages.length > 0 && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setView('export')}
-                      className="btn btn-primary"
-                    >
-                      <ExportIcon />
-                      <span className="hidden sm:inline">Export</span>
-                    </button>
-                    <button
-                      onClick={clear}
-                      className="btn btn-danger btn-icon"
-                      title="Clear all pages"
-                    >
-                      <TrashIcon />
-                    </button>
+              {/* Selection Mode Header */}
+              {selectionMode ? (
+                <SelectionModeHeader
+                  selectedCount={selectedPageIds.size}
+                  totalCount={pages.length}
+                  onDeleteSelected={handleDeleteSelected}
+                  onSelectAll={handleSelectAll}
+                  onCancel={handleCancelSelection}
+                />
+              ) : (
+                /* Normal Header */
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="font-display text-2xl text-carbon-100 mb-1">Your Document</h2>
+                    <p className="text-carbon-400 text-sm">
+                      {pages.length} page{pages.length !== 1 ? 's' : ''} scanned
+                    </p>
                   </div>
-                )}
-              </div>
+                  {pages.length > 0 && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setView('export')}
+                        className="btn btn-primary"
+                      >
+                        <ExportIcon />
+                        <span className="hidden sm:inline">Export</span>
+                      </button>
+                      <button
+                        onClick={clear}
+                        className="btn btn-danger btn-icon"
+                        title="Clear all pages"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Empty State */}
               {pages.length === 0 ? (
@@ -340,51 +448,32 @@ function App() {
                   </button>
                 </div>
               ) : (
-                /* Page Grid */
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {pages.map((page, index) => (
-                    <div key={page.id} className="page-thumbnail animate-slide-up" style={{ animationDelay: `${index * 50}ms` }}>
-                      <div className="relative aspect-[3/4]">
-                        <img
-                          src={page.processedImage}
-                          alt={`Page ${index + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="page-number">{String(index + 1).padStart(2, '0')}</div>
-
-                        {/* Enhancement mode selector */}
-                        <div className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <select
-                            value={page.enhancement}
-                            onChange={async (e) => {
-                              updatePage(page.id, { enhancement: e.target.value as any });
-                              // Reprocess the page with new enhancement
-                              await processPage(page.id);
-                            }}
-                            className="px-2 py-1 rounded-lg bg-carbon-950/90 backdrop-blur-sm text-xs font-semibold text-carbon-200 border border-carbon-700 cursor-pointer hover:bg-carbon-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                            title="Change enhancement mode"
-                          >
-                            <option value="color">📸 Color</option>
-                            <option value="grayscale">⬜ Grayscale</option>
-                            <option value="bw">⬛ B&W</option>
-                            <option value="enhanced">✨ Enhanced</option>
-                          </select>
-                        </div>
-
-                        {/* Delete button - appears on hover */}
-                        <button
-                          onClick={() => deletePage(page.id)}
-                          className="absolute bottom-3 right-3 z-20 p-2 rounded-lg bg-crimson-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-crimson-500"
-                        >
-                          <TrashIcon />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                /* Sortable Page Grid */
+                <SortablePageGrid
+                  pages={pages}
+                  selectionMode={selectionMode}
+                  selectedPageIds={selectedPageIds}
+                  onPageClick={handleOpenPreview}
+                  onPageLongPress={handleLongPress}
+                  onToggleSelection={handleToggleSelection}
+                  onReorder={handleReorder}
+                  onEnhancementChange={handleEnhancementChange}
+                  onDeletePage={deletePage}
+                />
               )}
             </div>
           </div>
+        )}
+
+        {/* Page Preview Modal */}
+        {previewPage && (
+          <PagePreviewModal
+            page={previewPage}
+            pageNumber={previewPageNumber}
+            onClose={handleClosePreview}
+            onDelete={handleDeleteFromPreview}
+            onRetake={handleRetakeFromPreview}
+          />
         )}
 
         {/* Export View */}

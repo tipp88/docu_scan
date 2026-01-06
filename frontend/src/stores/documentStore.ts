@@ -28,6 +28,8 @@ interface DocumentStore {
   addPage: (originalImage: string, corners?: [Point, Point, Point, Point]) => Promise<void>;
   updatePage: (id: string, updates: Partial<DocumentPage>) => void;
   deletePage: (id: string) => void;
+  deletePages: (ids: string[]) => void;
+  replacePage: (id: string, originalImage: string, corners?: [Point, Point, Point, Point]) => Promise<void>;
   reorderPages: (fromIndex: number, toIndex: number) => void;
   rotatePage: (id: string) => void;
   setCurrentPage: (index: number | null) => void;
@@ -193,6 +195,71 @@ export const useDocumentStore = create<DocumentStore>((set, get) => ({
         currentPageIndex: newCurrentIndex,
       };
     });
+  },
+
+  deletePages: (ids: string[]) => {
+    set(state => {
+      const idSet = new Set(ids);
+      const newPages = state.pages.filter(page => !idSet.has(page.id));
+      const currentIndex = state.currentPageIndex;
+      let newCurrentIndex = currentIndex;
+
+      if (currentIndex !== null) {
+        if (newPages.length === 0) {
+          newCurrentIndex = null;
+        } else if (currentIndex >= newPages.length) {
+          newCurrentIndex = newPages.length - 1;
+        }
+      }
+
+      return {
+        pages: newPages,
+        currentPageIndex: newCurrentIndex,
+      };
+    });
+  },
+
+  replacePage: async (id: string, originalImage: string, corners?: [Point, Point, Point, Point]) => {
+    const state = get();
+    const existingPage = state.pages.find(p => p.id === id);
+    if (!existingPage) return;
+
+    set({ isProcessing: true });
+
+    try {
+      const pageCorners = corners || existingPage.corners;
+      const defaultMode = getDefaultEnhancement();
+      let enhancementMode: EnhancementMode;
+
+      if (defaultMode === 'auto') {
+        enhancementMode = await detectBestEnhancement(originalImage);
+      } else {
+        enhancementMode = defaultMode;
+      }
+
+      // Update the page with new image
+      set(state => ({
+        pages: state.pages.map(p =>
+          p.id === id
+            ? {
+                ...p,
+                originalImage,
+                processedImage: originalImage,
+                corners: pageCorners,
+                enhancement: enhancementMode,
+                timestamp: Date.now(),
+              }
+            : p
+        ),
+      }));
+
+      // Process the updated page
+      await get().processPage(id);
+      set({ isProcessing: false });
+    } catch (error) {
+      console.error('Error replacing page:', error);
+      set({ isProcessing: false });
+    }
   },
 
   reorderPages: (fromIndex: number, toIndex: number) => {

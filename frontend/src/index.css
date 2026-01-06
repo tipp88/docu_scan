@@ -443,6 +443,54 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Selection Mode */
+.page-thumbnail.selected {
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.3);
+}
+
+.page-thumbnail.selected:hover {
+  border-color: #fbbf24;
+}
+
+.selection-checkbox {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 25;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: rgba(12, 12, 12, 0.8);
+  border: 2px solid #666666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.selection-checkbox.checked {
+  background: #fbbf24;
+  border-color: #fbbf24;
+}
+
+.selection-checkbox.checked svg {
+  color: #0c0c0c;
+}
+
+/* Drag and Drop */
+.page-thumbnail.dragging {
+  opacity: 0.5;
+  transform: scale(1.05) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+}
+
+.page-thumbnail.drag-over {
+  border-color: #fbbf24;
+  border-style: dashed;
+}
+
 /* ============================================
    Progress Bar
    ============================================ */
