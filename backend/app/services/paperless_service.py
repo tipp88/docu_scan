@@ -41,6 +41,9 @@ async def upload_to_paperless(
     if not token:
         raise ValueError("Paperless API token is not configured")
 
+    # Remove trailing slash from URL to prevent double slashes
+    url = url.rstrip('/')
+
     async with httpx.AsyncClient(timeout=60.0) as client:
         # Get or create tag IDs from tag names
         tag_ids = []
@@ -175,7 +178,7 @@ async def get_paperless_tags() -> List[Dict]:
     if not settings.paperless_enabled or not settings.paperless_token:
         return []
 
-    url = f"{settings.paperless_url}/api/tags/"
+    url = f"{settings.paperless_url.rstrip('/')}/api/tags/"
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(
@@ -197,7 +200,7 @@ async def get_paperless_correspondents() -> List[Dict]:
     if not settings.paperless_enabled or not settings.paperless_token:
         return []
 
-    url = f"{settings.paperless_url}/api/correspondents/"
+    url = f"{settings.paperless_url.rstrip('/')}/api/correspondents/"
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(
@@ -219,7 +222,7 @@ async def get_paperless_document_types() -> List[Dict]:
     if not settings.paperless_enabled or not settings.paperless_token:
         return []
 
-    url = f"{settings.paperless_url}/api/document_types/"
+    url = f"{settings.paperless_url.rstrip('/')}/api/document_types/"
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(
@@ -251,7 +254,7 @@ async def test_paperless_connection() -> Dict:
         }
 
     try:
-        url = f"{settings.paperless_url}/api/documents/"
+        url = f"{settings.paperless_url.rstrip('/')}/api/documents/"
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
@@ -263,7 +266,7 @@ async def test_paperless_connection() -> Dict:
             return {
                 'status': 'connected',
                 'message': 'Successfully connected to Paperless-ngx',
-                'url': settings.paperless_url
+                'url': settings.paperless_url.rstrip('/')
             }
     except httpx.HTTPError as e:
         return {
