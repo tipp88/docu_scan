@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  docuscan:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: docuscan:latest
+    container_name: docuscan
+    restart: unless-stopped
+    ports:
+      - "8443:443"  # HTTPS - change left port to your preference
+      - "8080:80"   # HTTP - redirects to HTTPS
+    environment:
+      # Backend Configuration
+      - BACKEND_HOST=127.0.0.1
+      - BACKEND_PORT=3001
+      - LOG_LEVEL=info
+
+      # Paperless-ngx Integration (optional)
+      - PAPERLESS_ENABLED=false
+      - PAPERLESS_URL=http://paperless:8000
+      - PAPERLESS_TOKEN=
+      - PAPERLESS_VERIFY_SSL=false
+
+      # Other integrations
+      - WEBDAV_ENABLED=false
+      - SMB_ENABLED=false
+      - FTP_ENABLED=false
+    volumes:
+      # Optional: Mount custom SSL certificates
+      # - ./ssl/docuscan.crt:/app/ssl/docuscan.crt:ro
+      # - ./ssl/docuscan.key:/app/ssl/docuscan.key:ro
+
+      # Optional: Mount backend .env for custom config
+      # - ./backend/.env:/app/backend/.env:ro
+
+      # Optional: Persist logs
+      - docuscan-logs:/var/log
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - docuscan-network
+
+  # Optional: Include Paperless-ngx if you want it in the same stack
+  # paperless:
+  #   image: ghcr.io/paperless-ngx/paperless-ngx:latest
+  #   container_name: paperless
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     - PAPERLESS_URL=http://paperless.local
+  #     - PAPERLESS_SECRET_KEY=change-me
+  #   volumes:
+  #     - paperless-data:/usr/src/paperless/data
+  #     - paperless-media:/usr/src/paperless/media
+  #   networks:
+  #     - docuscan-network
+
+volumes:
+  docuscan-logs:
+  # paperless-data:
+  # paperless-media:
+
+networks:
+  docuscan-network:
+    driver: bridge
