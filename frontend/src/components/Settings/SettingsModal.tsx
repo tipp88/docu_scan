@@ -25,8 +25,6 @@ const SaveIcon = () => (
   </svg>
 );
 
-const STORAGE_KEY = 'docuscan_settings';
-
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [settings, setSettings] = useState<SettingsData>({
     paperlessUrl: '',
@@ -36,14 +34,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   });
 
   const [isSaved, setIsSaved] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Load settings from backend on mount
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        setIsLoading(true);
         const response = await fetch('/api/settings');
         if (response.ok) {
           const data = await response.json();
@@ -53,8 +49,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         }
       } catch (e) {
         console.error('Failed to fetch settings:', e);
-      } finally {
-        setIsLoading(false);
       }
     };
     loadSettings();
