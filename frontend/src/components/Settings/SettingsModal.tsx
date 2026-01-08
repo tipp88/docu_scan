@@ -36,27 +36,54 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   });
 
   const [isSaved, setIsSaved] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Load settings from localStorage on mount
+  // Load settings from backend on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
+    const loadSettings = async () => {
       try {
-        const parsed = JSON.parse(stored);
-        setSettings(parsed);
+        setIsLoading(true);
+        const response = await fetch('/api/settings');
+        if (response.ok) {
+          const data = await response.json();
+          setSettings(data);
+        } else {
+          console.error('Failed to load settings from server');
+        }
       } catch (e) {
-        console.error('Failed to parse stored settings:', e);
+        console.error('Failed to fetch settings:', e);
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
+    loadSettings();
   }, []);
 
-  const handleSave = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
+  const handleSave = async () => {
+    try {
+      setSaveError(null);
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings),
+      });
 
-    // Close modal after brief delay
-    setTimeout(() => onClose(), 500);
+      if (!response.ok) {
+        throw new Error('Failed to save settings');
+      }
+
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
+
+      // Close modal after brief delay
+      setTimeout(() => onClose(), 500);
+    } catch (e) {
+      console.error('Failed to save settings:', e);
+      setSaveError(e instanceof Error ? e.message : 'Failed to save settings');
+    }
   };
 
   const handleReset = () => {
@@ -186,6 +213,18 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </p>
             </div>
           )}
+
+          {/* Error Message */}
+          {saveError && (
+            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl animate-fade-in">
+              <p className="text-red-400 text-sm font-medium flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {saveError}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -219,15 +258,18 @@ export function useSettings(): SettingsData {
   });
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
+    const loadSettings = async () => {
       try {
-        const parsed = JSON.parse(stored);
-        setSettings(parsed);
+        const response = await fetch('/api/settings');
+        if (response.ok) {
+          const data = await response.json();
+          setSettings(data);
+        }
       } catch (e) {
-        console.error('Failed to parse stored settings:', e);
+        console.error('Failed to fetch settings:', e);
       }
-    }
+    };
+    loadSettings();
   }, []);
 
   return settings;

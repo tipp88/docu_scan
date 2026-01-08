@@ -16,16 +16,22 @@ systemctl enable docker
 # Pull the latest pre-built image
 docker pull ghcr.io/tipp88/docu_scan:latest
 
-# Run the container
+# Run the container with persistent settings volume
 docker run -d \
   -p 8443:443 \
   -p 8080:80 \
+  -v /opt/docuscan-data:/app/data \
   --name docuscan \
   --restart unless-stopped \
   ghcr.io/tipp88/docu_scan:latest
 ```
 
 Visit: `https://your-lxc-ip:8443`
+
+**Volume Mapping:**
+- `/opt/docuscan-data:/app/data` - Stores settings (Paperless URL, API key, etc.)
+- Settings are shared across all devices accessing the app
+- Settings persist even when container is recreated
 
 **Note:** Pre-built images are automatically built from the main branch and version tags.
 
@@ -76,6 +82,7 @@ docker load < docuscan-image.tar.gz
 docker run -d \
   -p 8443:443 \
   -p 8080:80 \
+  -v /opt/docuscan-data:/app/data \
   --name docuscan \
   --restart unless-stopped \
   docuscan:latest
@@ -89,8 +96,17 @@ Visit: `https://localhost:8443` or `https://your-lxc-ip:8443`
 
 The camera will now work because HTTPS is enabled!
 
-## Configure Paperless (Optional)
+## Configure Paperless
 
+Settings are now configured through the web UI:
+1. Open DocuScan at `https://your-lxc-ip:8443/`
+2. Click the Settings icon (gear)
+3. Enter your Paperless URL and API token
+4. Click Save
+
+Settings are stored in `/opt/docuscan-data` and shared across all devices.
+
+**Alternative:** Use environment variables (legacy method):
 ```bash
 docker stop docuscan
 docker rm docuscan
@@ -98,13 +114,14 @@ docker rm docuscan
 docker run -d \
   -p 8443:443 \
   -p 8080:80 \
-  -e PAPERLESS_ENABLED=true \
+  -v /opt/docuscan-data:/app/data \
   -e PAPERLESS_URL=http://your-paperless-ip:8000 \
   -e PAPERLESS_TOKEN=your-api-token \
   --name docuscan \
   --restart unless-stopped \
   ghcr.io/tipp88/docu_scan:latest
 ```
+Note: UI settings take precedence over environment variables.
 
 ## Integration with Existing Nginx Dashboard
 
@@ -152,7 +169,13 @@ docker stop docuscan && docker rm docuscan
 docker stop docuscan
 docker rm docuscan
 docker pull ghcr.io/tipp88/docu_scan:latest
-docker run -d -p 8443:443 -p 8080:80 --name docuscan --restart unless-stopped ghcr.io/tipp88/docu_scan:latest
+docker run -d \
+  -p 8443:443 \
+  -p 8080:80 \
+  -v /opt/docuscan-data:/app/data \
+  --name docuscan \
+  --restart unless-stopped \
+  ghcr.io/tipp88/docu_scan:latest
 ```
 
 ### Option 2: Rebuild and Transfer
@@ -170,9 +193,11 @@ lxc exec your-container -- bash -c "
   docker stop docuscan
   docker rm docuscan
   docker load < /tmp/docuscan-image.tar.gz
-  docker run -d -p 8443:443 -p 8080:80 --name docuscan --restart unless-stopped docuscan:latest
+  docker run -d -p 8443:443 -p 8080:80 -v /opt/docuscan-data:/app/data --name docuscan --restart unless-stopped docuscan:latest
 "
 ```
+
+**Note:** The `-v /opt/docuscan-data:/app/data` volume mapping preserves your settings across updates.
 
 ## Advantages
 

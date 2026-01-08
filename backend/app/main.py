@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import pdf, paperless
+from app.routers import pdf, paperless, settings as settings_router
 
 app = FastAPI(
     title="Document Scanner API",
@@ -21,6 +21,7 @@ app.add_middleware(
 # Register routers
 app.include_router(pdf.router)
 app.include_router(paperless.router)
+app.include_router(settings_router.router)
 
 
 @app.get("/health")
@@ -45,6 +46,7 @@ async def root():
         "endpoints": {
             "pdf": "/api/pdf",
             "paperless": "/api/paperless",
+            "settings": "/api/settings",
             "health": "/health"
         }
     }

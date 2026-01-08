@@ -62,6 +62,9 @@ RUN mkdir -p /app/ssl && \
     -subj "/C=US/ST=State/L=City/O=DocuScan/CN=localhost" \
     -addext "subjectAltName=DNS:localhost,DNS:docuscan,IP:127.0.0.1"
 
+# Create data directory for persistent settings
+RUN mkdir -p /app/data && chmod 777 /app/data
+
 # Configure nginx
 COPY docker/nginx.conf /etc/nginx/sites-available/default
 
@@ -74,6 +77,9 @@ RUN mkdir -p /var/log/nginx /var/lib/nginx/body /var/lib/nginx/fastcgi \
 
 # Expose ports
 EXPOSE 80 443
+
+# Volume for persistent settings
+VOLUME ["/app/data"]
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \

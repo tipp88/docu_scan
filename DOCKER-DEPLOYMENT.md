@@ -10,11 +10,21 @@ This guide explains how to deploy DocuScan using Docker with a pre-built product
 # Pull the latest pre-built image from GitHub Container Registry
 docker pull ghcr.io/tipp88/docu_scan:latest
 
-# Run the container
-docker run -d -p 8443:443 -p 8080:80 --name docuscan ghcr.io/tipp88/docu_scan:latest
+# Run the container with persistent settings
+docker run -d \
+  -p 8443:443 \
+  -p 8080:80 \
+  -v $(pwd)/docuscan-data:/app/data \
+  --name docuscan \
+  ghcr.io/tipp88/docu_scan:latest
 
 # Access at https://localhost:8443
 ```
+
+**Volume Mapping:**
+- Creates a `docuscan-data` directory in current folder
+- Stores settings (Paperless URL, API key, etc.)
+- Settings persist across container restarts and updates
 
 **Note:** Images are automatically built and published for each push to main and version tags.
 
@@ -82,20 +92,45 @@ docker run -d -p 8443:443 -p 8080:80 --name docuscan docuscan:latest
 
 ## Configuration
 
-### Environment Variables
+### Settings Storage (Recommended)
 
-Create a `.env` file or pass environment variables:
+Settings are configured through the web UI and stored in `/app/data`:
+
+1. Map a volume to persist settings:
+   ```bash
+   docker run -d \
+     -p 8443:443 \
+     -p 8080:80 \
+     -v /opt/docuscan-data:/app/data \
+     --name docuscan \
+     ghcr.io/tipp88/docu_scan:latest
+   ```
+
+2. Open the app and click Settings (gear icon)
+3. Enter your Paperless URL and API token
+4. Click Save
+
+**Benefits:**
+- Settings shared across all devices on your network
+- No need to rebuild container to change settings
+- Settings persist through updates
+
+### Environment Variables (Alternative)
+
+You can also configure via environment variables:
 
 ```bash
 docker run -d \
   -p 8443:443 \
   -p 8080:80 \
-  -e PAPERLESS_ENABLED=true \
+  -v /opt/docuscan-data:/app/data \
   -e PAPERLESS_URL=http://your-paperless:8000 \
   -e PAPERLESS_TOKEN=your-token-here \
   --name docuscan \
-  docuscan:latest
+  ghcr.io/tipp88/docu_scan:latest
 ```
+
+**Note:** UI settings take precedence over environment variables.
 
 ### Using Docker Compose
 
